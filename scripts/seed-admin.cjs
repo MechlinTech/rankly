@@ -1,8 +1,9 @@
 // Creates or updates the platform super-admin from ADMIN_EMAIL / ADMIN_PASSWORD.
-// Used by the migrate container after `prisma migrate deploy`.
+// Uses `pg` directly so the migrate image does not need the generated Prisma client
+// (Prisma 7 emits TypeScript under src/generated, which Node cannot require).
+const { randomUUID } = require("crypto");
 const bcrypt = require("bcryptjs");
-const { PrismaPg } = require("@prisma/adapter-pg");
-const { PrismaClient } = require("../src/generated/prisma/client");
+const { Client } = require("pg");
 
 const email = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
 const password = process.env.ADMIN_PASSWORD || "";
@@ -20,30 +21,26 @@ async function main() {
     throw new Error("DATABASE_URL is not set.");
   }
 
-  const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
-  });
-
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {
-      passwordHash,
-      isSuperAdmin: true,
-      name,
-      emailVerified: new Date(),
-    },
-    create: {
-      email,
-      passwordHash,
-      isSuperAdmin: true,
-      name,
-      emailVerified: new Date(),
-    },
-  });
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
 
-  console.log(`Super admin ready: ${user.email}`);
-  await prisma.$disconnect();
+  try {
+    await client.query(
+      `INSERT INTO "User" (id, email, "passwordHash", name, "emailVerified", "isSuperAdmin", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, NOW(), true, NOW(), NOW())
+       ON CONFLICT (email) DO UPDATE
+       SET "passwordHash" = EXCLUDED."passwordHash",
+           "isSuperAdmin" = true,
+           name = EXCLUDED.name,
+           "emailVerified" = NOW(),
+           "updatedAt" = NOW()`,
+      [randomUUID(), email, passwordHash, name],
+    );
+    console.log(`Super admin ready: ${email}`);
+  } finally {
+    await client.end();
+  }
 }
 
 main().catch((err) => {
