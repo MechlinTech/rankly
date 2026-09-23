@@ -1,0 +1,84 @@
+# Dev stack — project name rankly-dev (does NOT touch rankly-prod)
+# App host port 43608 | Postgres host port 55998
+#
+# CI injects RANKLY_ENV_FILE from GitHub Environment "development" secrets:
+#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL,
+#   RESEND_API_KEY, EMAIL_FROM
+# DATABASE_URL must use host "postgres" (compose DNS), e.g.:
+#   postgresql://USER:PASS@postgres:5432/DB
+
+name: rankly-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rankly-db-dev
+    restart: unless-stopped
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    ports:
+      - "55998:5432"
+    volumes:
+      - rankly_pgdata_dev:/var/lib/postgresql/data
+    networks:
+      - rankly-dev-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: ${RANKLY_MIGRATE_IMAGE:-akshatpareek/rankly:dev-migrate}
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rankly.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-RanklyAdmin1}
+      ADMIN_NAME: ${ADMIN_NAME:-Platform Admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-dev-net
+    restart: "no"
+    profiles:
+      - migrate
+
+  app:
+    image: ${RANKLY_APP_IMAGE:-akshatpareek/rankly:dev}
+    container_name: rankly-app-dev
+    restart: unless-stopped
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # env_file DATABASE_URL often uses localhost (host-machine value).
+      # Inside this network the DB is always the "postgres" service.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "43608:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-dev-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+networks:
+  rankly-dev-net:
+    name: rankly-dev-net
+    driver: bridge
+
+volumes:
+  rankly_pgdata_dev:
+    name: rankly_pgdata_dev

@@ -1,0 +1,95 @@
+# Local test stack — project name rankly-local (does NOT touch rankly-dev / rankly-prod)
+# App: http://localhost:36331  |  Postgres host port: 51784
+#
+# From repo root:
+#   cp docker/.env.example docker/.env.local
+#   # edit docker/.env.local if needed
+#   docker compose -p rankly-local -f docker/docker-compose-local.yml up -d --build
+#   docker compose -p rankly-local -f docker/docker-compose-local.yml --profile migrate run --rm migrate
+#
+# Stop (keeps volumes):
+#   docker compose -p rankly-local -f docker/docker-compose-local.yml down
+# Wipe DB volume too:
+#   docker compose -p rankly-local -f docker/docker-compose-local.yml down -v
+
+name: rankly-local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rankly-db-local
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "51784:5432"
+    volumes:
+      - rankly_pgdata_local:/var/lib/postgresql/data
+    networks:
+      - rankly-local-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: migrate
+    image: rankly-local-migrate
+    env_file:
+      - .env.local
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rankly}:${POSTGRES_PASSWORD:-rankly_local_only}@postgres:5432/${POSTGRES_DB:-rankly}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rankly.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-RanklyAdmin1}
+      ADMIN_NAME: ${ADMIN_NAME:-Platform Admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-local-net
+    restart: "no"
+    profiles:
+      - migrate
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runner
+    image: rankly-local-app
+    container_name: rankly-app-local
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      COOKIE_SECURE: "false"
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rankly}:${POSTGRES_PASSWORD:-rankly_local_only}@postgres:5432/${POSTGRES_DB:-rankly}
+    ports:
+      - "36331:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-local-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+networks:
+  rankly-local-net:
+    name: rankly-local-net
+    driver: bridge
+
+volumes:
+  rankly_pgdata_local:
+    name: rankly_pgdata_local

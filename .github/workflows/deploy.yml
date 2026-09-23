@@ -1,0 +1,280 @@
+# Build & deploy Rankly on Windows self-hosted runners.
+# - push/merge to main  → rebuild + deploy DEV  (rankly-dev) — never touches prod
+# - push/merge to prod  → rebuild + deploy PROD (rankly-prod) — never touches dev
+#
+# Uses PowerShell because the runner is Windows. WSL bash.exe cannot open
+# GitHub's temp scripts (Windows backslashes are stripped: C:\Users\... → C:Users...).
+#
+# GitHub Environments:
+#   development  → deploy-dev  (main)
+#   production   → deploy-prod (prod)
+#
+# Secrets required on each environment:
+#   DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+#   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL
+#   RESEND_API_KEY, EMAIL_FROM
+#   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
+#     (dev defaults to admin@rankly.local / RanklyAdmin1 if unset)
+
+name: Deploy
+
+on:
+  push:
+    branches: [main, prod]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Force deploy environment (auto if empty)"
+        required: false
+        type: choice
+        options:
+          - auto
+          - dev
+          - prod
+        default: auto
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: powershell
+
+env:
+  REGISTRY_IMAGE: akshatpareek/rankly
+
+jobs:
+  deploy-dev:
+    name: Deploy Dev
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.environment == 'dev' ||
+         (inputs.environment == 'auto' && github.ref == 'refs/heads/main')))
+    runs-on: self-hosted
+    environment: development
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write env file from GitHub Environment secrets
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
+            if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { continue }
+            throw "Set $name on the development environment"
+          }
+
+          # Inside Compose the DB hostname is the "postgres" service, not localhost.
+          $databaseUrl = $env:DATABASE_URL
+          if ($databaseUrl -match '@(localhost|127\.0\.0\.1)(:\d+)?/') {
+            $user = [uri]::EscapeDataString($env:POSTGRES_USER)
+            $pass = [uri]::EscapeDataString($env:POSTGRES_PASSWORD)
+            $databaseUrl = "postgresql://${user}:${pass}@postgres:5432/$($env:POSTGRES_DB)"
+          }
+
+          $adminEmail = if ([string]::IsNullOrWhiteSpace($env:ADMIN_EMAIL)) { "admin@rankly.local" } else { $env:ADMIN_EMAIL }
+          $adminPassword = if ([string]::IsNullOrWhiteSpace($env:ADMIN_PASSWORD)) { "RanklyAdmin1" } else { $env:ADMIN_PASSWORD }
+          $adminName = if ([string]::IsNullOrWhiteSpace($env:ADMIN_NAME)) { "Platform Admin" } else { $env:ADMIN_NAME }
+
+          $envFile = Join-Path $env:RUNNER_TEMP "rankly.dev.env"
+          $pairs = @(
+            "POSTGRES_USER=$env:POSTGRES_USER"
+            "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD"
+            "POSTGRES_DB=$env:POSTGRES_DB"
+            "DATABASE_URL=$databaseUrl"
+            "RESEND_API_KEY=$env:RESEND_API_KEY"
+            "EMAIL_FROM=$env:EMAIL_FROM"
+            "ADMIN_EMAIL=$adminEmail"
+            "ADMIN_PASSWORD=$adminPassword"
+            "ADMIN_NAME=$adminName"
+          )
+          Set-Content -Path $envFile -Value $pairs -Encoding ascii
+          Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set image tags
+        id: meta
+        run: |
+          $sha = $env:GITHUB_SHA.Substring(0, 7)
+          @(
+            "app_tag=$($env:REGISTRY_IMAGE):dev"
+            "app_sha=$($env:REGISTRY_IMAGE):dev-$sha"
+            "migrate_tag=$($env:REGISTRY_IMAGE):dev-migrate"
+            "migrate_sha=$($env:REGISTRY_IMAGE):dev-migrate-$sha"
+          ) | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Build app image
+        run: |
+          docker build -f docker/Dockerfile --target runner -t "${{ steps.meta.outputs.app_tag }}" -t "${{ steps.meta.outputs.app_sha }}" .
+
+      - name: Build migrate image
+        run: |
+          docker build -f docker/Dockerfile --target migrate -t "${{ steps.meta.outputs.migrate_tag }}" -t "${{ steps.meta.outputs.migrate_sha }}" .
+
+      - name: Push images
+        run: |
+          docker push "${{ steps.meta.outputs.app_tag }}"
+          docker push "${{ steps.meta.outputs.app_sha }}"
+          docker push "${{ steps.meta.outputs.migrate_tag }}"
+          docker push "${{ steps.meta.outputs.migrate_sha }}"
+
+      - name: Deploy dev stack (prod containers untouched)
+        env:
+          RANKLY_APP_IMAGE: ${{ steps.meta.outputs.app_sha }}
+          RANKLY_MIGRATE_IMAGE: ${{ steps.meta.outputs.migrate_sha }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not $env:RANKLY_ENV_FILE) { throw "RANKLY_ENV_FILE was not set" }
+
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-dev -f docker/docker-compose-dev.yml up -d postgres
+          if ($LASTEXITCODE -ne 0) { throw "compose up postgres failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-dev -f docker/docker-compose-dev.yml --profile migrate run --rm migrate
+          if ($LASTEXITCODE -ne 0) { throw "migrate failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-dev -f docker/docker-compose-dev.yml up -d --no-deps --pull missing app
+          if ($LASTEXITCODE -ne 0) { throw "compose up app failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-dev -f docker/docker-compose-dev.yml up -d --remove-orphans postgres app
+          if ($LASTEXITCODE -ne 0) { throw "compose reconcile failed" }
+
+          Write-Host "Dev deploy complete. Prod stack (rankly-prod) was not modified."
+          docker ps --filter "name=rankly-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Scrub temp env file
+        if: always()
+        run: |
+          if ($env:RANKLY_ENV_FILE -and (Test-Path $env:RANKLY_ENV_FILE)) {
+            Remove-Item -Force $env:RANKLY_ENV_FILE
+          }
+
+  deploy-prod:
+    name: Deploy Prod
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/prod') ||
+      (github.event_name == 'workflow_dispatch' &&
+        (inputs.environment == 'prod' ||
+         (inputs.environment == 'auto' && github.ref == 'refs/heads/prod')))
+    runs-on: self-hosted
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write env file from GitHub Environment secrets
+        env:
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
+            if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { continue }
+            throw "Set $name on the production environment"
+          }
+
+          # Inside Compose the DB hostname is the "postgres" service, not localhost.
+          $databaseUrl = $env:DATABASE_URL
+          if ($databaseUrl -match '@(localhost|127\.0\.0\.1)(:\d+)?/') {
+            $user = [uri]::EscapeDataString($env:POSTGRES_USER)
+            $pass = [uri]::EscapeDataString($env:POSTGRES_PASSWORD)
+            $databaseUrl = "postgresql://${user}:${pass}@postgres:5432/$($env:POSTGRES_DB)"
+          }
+
+          $adminEmail = if ([string]::IsNullOrWhiteSpace($env:ADMIN_EMAIL)) { "admin@rankly.local" } else { $env:ADMIN_EMAIL }
+          $adminPassword = if ([string]::IsNullOrWhiteSpace($env:ADMIN_PASSWORD)) { "RanklyAdmin1" } else { $env:ADMIN_PASSWORD }
+          $adminName = if ([string]::IsNullOrWhiteSpace($env:ADMIN_NAME)) { "Platform Admin" } else { $env:ADMIN_NAME }
+
+          $envFile = Join-Path $env:RUNNER_TEMP "rankly.prod.env"
+          $pairs = @(
+            "POSTGRES_USER=$env:POSTGRES_USER"
+            "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD"
+            "POSTGRES_DB=$env:POSTGRES_DB"
+            "DATABASE_URL=$databaseUrl"
+            "RESEND_API_KEY=$env:RESEND_API_KEY"
+            "EMAIL_FROM=$env:EMAIL_FROM"
+            "ADMIN_EMAIL=$adminEmail"
+            "ADMIN_PASSWORD=$adminPassword"
+            "ADMIN_NAME=$adminName"
+          )
+          Set-Content -Path $envFile -Value $pairs -Encoding ascii
+          Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set image tags
+        id: meta
+        run: |
+          $sha = $env:GITHUB_SHA.Substring(0, 7)
+          @(
+            "app_tag=$($env:REGISTRY_IMAGE):prod"
+            "app_sha=$($env:REGISTRY_IMAGE):prod-$sha"
+            "migrate_tag=$($env:REGISTRY_IMAGE):prod-migrate"
+            "migrate_sha=$($env:REGISTRY_IMAGE):prod-migrate-$sha"
+          ) | Add-Content -Path $env:GITHUB_OUTPUT
+
+      - name: Build app image
+        run: |
+          docker build -f docker/Dockerfile --target runner -t "${{ steps.meta.outputs.app_tag }}" -t "${{ steps.meta.outputs.app_sha }}" .
+
+      - name: Build migrate image
+        run: |
+          docker build -f docker/Dockerfile --target migrate -t "${{ steps.meta.outputs.migrate_tag }}" -t "${{ steps.meta.outputs.migrate_sha }}" .
+
+      - name: Push images
+        run: |
+          docker push "${{ steps.meta.outputs.app_tag }}"
+          docker push "${{ steps.meta.outputs.app_sha }}"
+          docker push "${{ steps.meta.outputs.migrate_tag }}"
+          docker push "${{ steps.meta.outputs.migrate_sha }}"
+
+      - name: Deploy prod stack (dev containers untouched)
+        env:
+          RANKLY_APP_IMAGE: ${{ steps.meta.outputs.app_sha }}
+          RANKLY_MIGRATE_IMAGE: ${{ steps.meta.outputs.migrate_sha }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (-not $env:RANKLY_ENV_FILE) { throw "RANKLY_ENV_FILE was not set" }
+
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-prod -f docker/docker-compose-prod.yml up -d postgres
+          if ($LASTEXITCODE -ne 0) { throw "compose up postgres failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-prod -f docker/docker-compose-prod.yml --profile migrate run --rm migrate
+          if ($LASTEXITCODE -ne 0) { throw "migrate failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-prod -f docker/docker-compose-prod.yml up -d --no-deps --pull missing app
+          if ($LASTEXITCODE -ne 0) { throw "compose up app failed" }
+          docker compose --env-file $env:RANKLY_ENV_FILE -p rankly-prod -f docker/docker-compose-prod.yml up -d --remove-orphans postgres app
+          if ($LASTEXITCODE -ne 0) { throw "compose reconcile failed" }
+
+          Write-Host "Prod deploy complete. Dev stack (rankly-dev) was not modified."
+          docker ps --filter "name=rankly-" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+      - name: Scrub temp env file
+        if: always()
+        run: |
+          if ($env:RANKLY_ENV_FILE -and (Test-Path $env:RANKLY_ENV_FILE)) {
+            Remove-Item -Force $env:RANKLY_ENV_FILE
+          }

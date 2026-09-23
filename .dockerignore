@@ -1,0 +1,49 @@
+# Dependencies & build output
+node_modules
+.next
+out
+build
+coverage
+dist
+
+# Git / CI / IDE
+.git
+.github
+.agents
+.claude
+.windsurf
+.cursor
+.vscode
+.idea
+*.md
+!README.md
+
+# Env & secrets (never bake into image)
+.env
+.env.*
+!.env.example
+
+# Tests & tooling not needed at runtime
+tests
+playwright-report
+test-results
+blob-report
+playwright
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+vitest.config.mts
+vitest.integration.config.mts
+playwright.config.ts
+eslint.config.mjs
+
+# Local / misc
+backups
+*.log
+.DS_Store
+Dockerfile*
+docker-compose*.yml
+docker/
+AGENTS.md
+CLAUDE.md
+skills-lock.json

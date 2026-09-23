@@ -1,0 +1,441 @@
+// Rankly — multi-tenant SEO/AI-search intelligence platform
+// Schema covers: tenancy, auth, RBAC, and the SEO engine core domain.
+// Billing (Stripe) and audit-log tables are added in a later migration once a provider is chosen.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Tenancy & Auth ----------
+
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  plan      Plan     @default(FREE)
+  status    TenantStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  billingInterval      BillingInterval?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  trialEndsAt          DateTime?
+
+  memberships   Membership[]
+  invitations   Invitation[]
+  projects      Project[]
+  billingEvents BillingEvent[]
+  companies     Company[]
+  contacts      Contact[]
+  crmTasks      CrmTask[]
+  crmActivities CrmActivity[]
+
+  @@index([status])
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+// Raw Stripe webhook events, kept for audit/debugging and to make event
+// processing idempotent (a replayed webhook is a no-op if its id is already here).
+model BillingEvent {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  stripeEventId String @unique
+  type        String
+  payload     Json
+  processedAt DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+enum Plan {
+  FREE
+  STARTER
+  GROWTH
+  SCALE
+  ENTERPRISE
+}
+
+enum TenantStatus {
+  ACTIVE
+  TRIALING
+  SUSPENDED
+  CANCELED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String?  // null when user only uses OAuth
+  name          String?
+  emailVerified DateTime?
+  isSuperAdmin  Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships           Membership[]
+  oauthAccounts         OAuthAccount[]
+  sessions              Session[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum OAuthProvider {
+  GOOGLE
+  MICROSOFT
+}
+
+model OAuthAccount {
+  id             String        @id @default(cuid())
+  provider       OAuthProvider
+  providerUserId String
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime      @default(now())
+
+  @@unique([provider, providerUserId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  revokedAt    DateTime?
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([userId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MANAGER
+  MEMBER
+  VIEWER
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @default(MEMBER)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
+model Invitation {
+  id         String   @id @default(cuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email      String
+  role       Role     @default(MEMBER)
+  token      String   @unique
+  invitedBy  String
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String?
+  actorId   String?
+  action    String
+  target    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// ---------- SEO Engine Core ----------
+
+model Project {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  domain    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  keywords       Keyword[]
+  rankSnapshots  RankSnapshot[]
+  auditRuns      SiteAuditRun[]
+  competitors    Competitor[]
+  aiVisibility   AiVisibilitySnapshot[]
+
+  @@index([tenantId])
+}
+
+model Keyword {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  term          String
+  locale        String   @default("en-US")
+  searchVolume  Int?
+  difficulty    Float?
+  cpc           Float?
+  intent        String?
+  tags          String[] @default([])
+  createdAt     DateTime @default(now())
+
+  rankSnapshots RankSnapshot[]
+
+  @@unique([projectId, term, locale])
+  @@index([projectId])
+}
+
+model RankSnapshot {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keywordId   String
+  keyword     Keyword  @relation(fields: [keywordId], references: [id], onDelete: Cascade)
+  position    Int?
+  url         String?
+  searchEngine String  @default("google")
+  device      String   @default("desktop")
+  capturedAt  DateTime @default(now())
+
+  @@index([projectId, keywordId, capturedAt])
+}
+
+model Competitor {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  domain    String
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, domain])
+}
+
+model SiteAuditRun {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status      AuditStatus @default(QUEUED)
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  pagesCrawled Int      @default(0)
+  issuesFound  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  issues      SiteAuditIssue[]
+
+  @@index([projectId, createdAt])
+}
+
+enum AuditStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model SiteAuditIssue {
+  id         String   @id @default(cuid())
+  auditRunId String
+  auditRun   SiteAuditRun @relation(fields: [auditRunId], references: [id], onDelete: Cascade)
+  url        String
+  severity   IssueSeverity
+  category   String
+  message    String
+  createdAt  DateTime @default(now())
+
+  @@index([auditRunId])
+}
+
+enum IssueSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+// AI Overviews / AI-search visibility tracking (SEMrush's "AI SEO" surface)
+model AiVisibilitySnapshot {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keywordTerm String
+  engine      String   // e.g. "google-ai-overview", "chatgpt-search", "perplexity"
+  isCited     Boolean  @default(false)
+  citedUrl    String?
+  snippet     String?
+  capturedAt  DateTime @default(now())
+
+  @@index([projectId, engine, capturedAt])
+}
+
+// ---------- AI usage / governance (model abstraction logging) ----------
+
+model AiActivityLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String?
+  feature     String   // e.g. "content-assistant", "keyword-clustering"
+  provider    String
+  model       String
+  promptTokens Int
+  completionTokens Int
+  costUsd     Float?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// ---------- CRM / business workspace ----------
+
+enum CompanyStage {
+  LEAD
+  PROSPECT
+  CLIENT
+  CHURNED
+}
+
+model Company {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  domain    String?
+  stage     CompanyStage @default(LEAD)
+  ownerId   String?
+  tags      String[]     @default([])
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  contacts   Contact[]
+  tasks      CrmTask[]
+  activities CrmActivity[]
+
+  @@index([tenantId, stage])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  name      String
+  email     String?
+  phone     String?
+  title     String?
+  ownerId   String?
+  tags      String[] @default([])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks      CrmTask[]
+  activities CrmActivity[]
+
+  @@index([tenantId, companyId])
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+model CrmTask {
+  id         String     @id @default(cuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId  String?
+  company    Company?   @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId  String?
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title      String
+  status     TaskStatus @default(OPEN)
+  dueAt      DateTime?
+  assigneeId String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([tenantId, status])
+}
+
+enum ActivityType {
+  NOTE
+  CALL
+  EMAIL
+  MEETING
+  STAGE_CHANGE
+}
+
+// Timeline entry for a company/contact — the CRM's activity history.
+model CrmActivity {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  companyId String?
+  company   Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  contactId String?
+  contact   Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  type      ActivityType @default(NOTE)
+  body      String
+  authorId  String?
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId, companyId, createdAt])
+  @@index([tenantId, contactId, createdAt])
+}

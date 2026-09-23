@@ -1,0 +1,80 @@
+# Prod stack — project name rankly-prod (does NOT touch rankly-dev)
+# Usage (from repo root):
+#   RANKLY_ENV_FILE=/path/to/env docker compose -p rankly-prod -f docker/docker-compose-prod.yml up -d
+#
+# CI writes RANKLY_ENV_FILE from the GitHub Environment "production" secrets.
+# DATABASE_URL must use compose DNS host "postgres" when using the bundled DB.
+
+name: rankly-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rankly-db-prod
+    restart: unless-stopped
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    ports:
+      - "${PROD_DB_PORT:-2446}:5432"
+    volumes:
+      - rankly_pgdata_prod:/var/lib/postgresql/data
+    networks:
+      - rankly-prod-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    image: ${RANKLY_MIGRATE_IMAGE:-akshatpareek/rankly:prod-migrate}
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ADMIN_NAME: ${ADMIN_NAME:-Platform Admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-prod-net
+    restart: "no"
+    profiles:
+      - migrate
+
+  app:
+    image: ${RANKLY_APP_IMAGE:-akshatpareek/rankly:prod}
+    container_name: rankly-app-prod
+    restart: unless-stopped
+    env_file:
+      - ${RANKLY_ENV_FILE:?Set RANKLY_ENV_FILE to the env file path}
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "${PROD_APP_PORT:-26436}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - rankly-prod-net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+
+networks:
+  rankly-prod-net:
+    name: rankly-prod-net
+    driver: bridge
+
+volumes:
+  rankly_pgdata_prod:
+    name: rankly_pgdata_prod
