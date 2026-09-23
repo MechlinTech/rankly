@@ -60,4 +60,8 @@ COPY scripts/seed-admin.cjs ./scripts/seed-admin.cjs
 RUN npx prisma generate --config prisma7.config.ts
 
 ENV NODE_ENV=production
+ENV CI=true
+ENV PRISMA_HIDE_UPDATE_MESSAGE=1
+ENV CHECKPOINT_DISABLE=1
+ENV NO_UPDATE_NOTIFIER=1
 CMD ["sh", "-c", "npx prisma migrate deploy --config prisma7.config.ts && node scripts/seed-admin.cjs"]

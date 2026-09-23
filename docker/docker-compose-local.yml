@@ -46,6 +46,10 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@rankly.local}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-RanklyAdmin1}
       ADMIN_NAME: ${ADMIN_NAME:-Platform Admin}
+      CI: "true"
+      PRISMA_HIDE_UPDATE_MESSAGE: "1"
+      CHECKPOINT_DISABLE: "1"
+      NO_UPDATE_NOTIFIER: "1"
     depends_on:
       postgres:
         condition: service_healthy
