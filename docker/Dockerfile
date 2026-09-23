@@ -57,8 +57,6 @@ COPY package.json package-lock.json prisma7.config.ts ./
 COPY prisma ./prisma
 COPY scripts/seed-admin.cjs ./scripts/seed-admin.cjs
 
-RUN npx prisma generate --config prisma7.config.ts
-
 ENV NODE_ENV=production
 ENV CI=true
 ENV PRISMA_HIDE_UPDATE_MESSAGE=1
