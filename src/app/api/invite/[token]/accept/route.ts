@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, createSession } from "@/lib/auth/session";
-import { hashPassword, isPasswordStrongEnough } from "@/lib/auth/password";
+import { hashPassword, passwordStrengthError } from "@/lib/auth/password";
 import { getClientIp } from "@/lib/auth/rate-limit";
 
 const requestSchema = z.object({
@@ -41,8 +41,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!name || !password) {
       return NextResponse.json({ error: "Name and password are required to create your account." }, { status: 400 });
     }
-    if (!isPasswordStrongEnough(password)) {
-      return NextResponse.json({ error: "Password must be at least 10 characters." }, { status: 400 });
+    const passwordError = passwordStrengthError(password);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
     const passwordHash = await hashPassword(password);

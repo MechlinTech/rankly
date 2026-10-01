@@ -1,7 +1,13 @@
 import { Resend } from "resend";
 
+/** EMAIL_FROM is canonical. RESEND_FROM_EMAIL is accepted so existing deployments keep sending. */
+export function emailFromAddress(): string | undefined {
+  const value = (process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL)?.trim();
+  return value || undefined;
+}
+
 export function isEmailConfigured(): boolean {
-  return !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
+  return !!(process.env.RESEND_API_KEY && emailFromAddress());
 }
 
 let client: Resend | null = null;
@@ -38,9 +44,14 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     return { sent: false, reason: "No email provider configured (RESEND_API_KEY / EMAIL_FROM unset)." };
   }
 
+  const from = emailFromAddress();
+  if (!from) {
+    return { sent: false, reason: "No email provider configured (RESEND_API_KEY / EMAIL_FROM unset)." };
+  }
+
   const resend = getClient();
   const result = await resend.emails.send({
-    from: process.env.EMAIL_FROM!,
+    from,
     to: input.to,
     subject: input.subject,
     html: input.html,

@@ -9,7 +9,8 @@ export function VerifyEmailBanner() {
     setStatus("sending");
     try {
       const res = await fetch("/api/auth/verify-email/resend", { method: "POST" });
-      setStatus(res.ok ? "sent" : "error");
+      const data = await res.json().catch(() => null);
+      setStatus(res.ok && data?.emailSent !== false ? "sent" : "error");
     } catch {
       setStatus("error");
     }
@@ -21,9 +22,12 @@ export function VerifyEmailBanner() {
       {status === "sent" ? (
         <span className="font-medium">Check your inbox.</span>
       ) : (
-        <button onClick={resend} disabled={status === "sending"} className="font-medium underline">
-          {status === "sending" ? "Sending…" : "Resend verification email"}
-        </button>
+        <span className="flex items-center gap-3">
+          {status === "error" && <span>Couldn&apos;t send the verification email.</span>}
+          <button onClick={resend} disabled={status === "sending"} className="font-medium underline">
+            {status === "sending" ? "Sending…" : "Resend verification email"}
+          </button>
+        </span>
       )}
     </div>
   );

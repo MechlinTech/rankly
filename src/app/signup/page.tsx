@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
 import { OAuthButtons } from "@/components/oauth-buttons";
+import { messageFromApiError, signupValidationMessage } from "@/lib/auth/signup-validation";
 
 export default function SignupPage() {
   const nameId = useId();
@@ -19,8 +20,14 @@ export default function SignupPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
+    const validationMessage = signupValidationMessage({ name, companyName, email, password });
+    if (validationMessage) {
+      setError(validationMessage);
+      return;
+    }
+
+    setLoading(true);
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
@@ -29,8 +36,7 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        const message = data?.error?.formErrors?.[0] ?? data?.error?.fieldErrors ?? "Something went wrong.";
-        setError(typeof message === "string" ? message : "Please check your details and try again.");
+        setError(messageFromApiError(data?.error, "Please check your details and try again."));
         return;
       }
       window.location.assign("/keywords");
@@ -58,7 +64,7 @@ export default function SignupPage() {
           <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
           <div>
             <label htmlFor={nameId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Your name</label>
             <Input id={nameId} required value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
@@ -82,9 +88,13 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
             />
-            <p className="mt-1 text-xs text-slate-500">At least 10 characters.</p>
+            <p className="mt-1 text-xs text-slate-500">At least 10 characters. Blank spaces alone are not accepted.</p>
           </div>
-          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
           <Button type="submit" disabled={loading}>
             {loading ? "Creating account…" : "Create account"}
           </Button>

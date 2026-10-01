@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, CardHeader } from "@/components/ui";
 import { PLANS } from "@/lib/billing/plans";
+import { messageFromApiError } from "@/lib/auth/signup-validation";
 
 interface MeResponse {
   user: { email: string } | null;
@@ -47,8 +48,8 @@ export default function BillingPage() {
         body: JSON.stringify({ plan: planId, interval: "MONTHLY" }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Couldn't start checkout.");
+      if (!res.ok || typeof data.url !== "string" || !data.url) {
+        setError(messageFromApiError(data.error, "Couldn't start checkout."));
         return;
       }
       // eslint-disable-next-line react-hooks/immutability -- external redirect to Stripe Checkout
@@ -65,8 +66,8 @@ export default function BillingPage() {
     try {
       const res = await fetch("/api/billing/portal", { method: "POST" });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Couldn't open billing portal.");
+      if (!res.ok || typeof data.url !== "string" || !data.url) {
+        setError(messageFromApiError(data.error, "Couldn't open billing portal."));
         return;
       }
       window.location.href = data.url;
@@ -98,7 +99,11 @@ export default function BillingPage() {
             </Button>
           )}
         </div>
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
       </Card>
 
       <Card>

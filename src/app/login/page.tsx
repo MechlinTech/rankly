@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
 import { OAuthButtons } from "@/components/oauth-buttons";
+import { PasswordField } from "@/components/password-field";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   oauth_state: "That sign-in link expired or was invalid. Please try again.",
@@ -77,12 +78,11 @@ function LoginForm() {
                 Forgot password?
               </Link>
             </div>
-            <Input
+            <PasswordField
               id={passwordId}
-              type="password"
               required
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               autoComplete="current-password"
             />
           </div>

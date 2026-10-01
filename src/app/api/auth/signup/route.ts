@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
-import { hashPassword, isPasswordStrongEnough } from "@/lib/auth/password";
+import { hashPassword } from "@/lib/auth/password";
+import { signupValidationMessage } from "@/lib/auth/signup-validation";
 import { createSession } from "@/lib/auth/session";
 import { generateUniqueTenantSlug } from "@/lib/auth/tenant";
 import { isRateLimited, getClientIp } from "@/lib/auth/rate-limit";
 import { createAndSendVerificationEmail } from "@/lib/email/verification";
-
-const requestSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-  email: z.string().trim().toLowerCase().email().max(255),
-  password: z.string().min(1).max(200),
-  companyName: z.string().trim().min(1).max(120),
-});
 
 export async function POST(req: NextRequest) {
   const ip = getClientIp(req);
@@ -27,19 +20,19 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json().catch(() => null);
-  const parsed = requestSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  }
-
-  const { name, email, password, companyName } = parsed.data;
-
-  if (!isPasswordStrongEnough(password)) {
+  const validationMessage = signupValidationMessage(body);
+  if (validationMessage || !body || typeof body !== "object") {
     return NextResponse.json(
-      { error: { formErrors: ["Password must be at least 10 characters."] } },
+      { error: { formErrors: [validationMessage ?? "Please check your details and try again."] } },
       { status: 400 }
     );
   }
+
+  const record = body as { name: string; email: string; password: string; companyName: string };
+  const name = record.name.trim();
+  const companyName = record.companyName.trim();
+  const email = record.email.trim().toLowerCase();
+  const password = record.password.trim();
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -90,7 +83,15 @@ export async function POST(req: NextRequest) {
   );
 
   // Non-fatal: signup should succeed even if the email provider hiccups.
-  await createAndSendVerificationEmail(user.id, user.email, req.nextUrl.origin).catch(() => {});
+  const emailResult = await createAndSendVerificationEmail(user.id, user.email, req.nextUrl.origin).catch(
+    (error: unknown) => {
+      console.error("Verification email failed", error);
+      return { sent: false as const, reason: "send failed" };
+    }
+  );
+  if (!emailResult.sent) {
+    console.error("Verification email was not sent", emailResult.reason ?? "unknown");
+  }
 
   return res;
 }
