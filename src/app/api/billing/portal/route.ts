@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth/require-role";
 import { getStripeClient, isStripeConfigured } from "@/lib/billing/stripe";
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
   const stripe = getStripeClient();
   const session = await stripe.billingPortal.sessions.create({
     customer: ctx.tenant.stripeCustomerId,
-    return_url: `${req.nextUrl.origin}/billing`,
+    return_url: `${getAppUrl(req)}/billing`,
   });
 
   return NextResponse.json({ url: session.url });

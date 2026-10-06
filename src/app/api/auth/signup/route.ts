@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
   );
 
   // Non-fatal: signup should succeed even if the email provider hiccups.
-  const emailResult = await createAndSendVerificationEmail(user.id, user.email, req.nextUrl.origin).catch(
+  const emailResult = await createAndSendVerificationEmail(user.id, user.email, getAppUrl(req)).catch(
     (error: unknown) => {
       console.error("Verification email failed", error);
       return { sent: false as const, reason: "send failed" };

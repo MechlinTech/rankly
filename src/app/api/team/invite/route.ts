@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/require-role";
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const inviteUrl = `${req.nextUrl.origin}/invite/${invitation.token}`;
+  const inviteUrl = `${getAppUrl(req)}/invite/${invitation.token}`;
   const { subject, html } = teamInviteTemplate(inviteUrl, ctx.tenant.name, ctx.user.email);
   const emailResult = await sendEmail({ to: email, subject, html }).catch(() => ({ sent: false as const }));
 

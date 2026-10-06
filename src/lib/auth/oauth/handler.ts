@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { randomBytes } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
@@ -11,7 +12,7 @@ const STATE_COOKIE_PREFIX = "rankly_oauth_state_";
 const STATE_TTL_MS = 10 * 60 * 1000;
 
 function redirectUriFor(req: NextRequest, provider: string): string {
-  return new URL(`/api/auth/oauth/${provider}/callback`, req.nextUrl.origin).toString();
+  return new URL(`/api/auth/oauth/${provider}/callback`, getAppUrl(req)).toString();
 }
 
 export async function handleOAuthStart(req: NextRequest, adapter: OAuthProviderAdapter) {
@@ -56,7 +57,7 @@ export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProvid
   const returnedState = url.searchParams.get("state");
 
   if (!code || !returnedState || !expectedState || returnedState !== expectedState) {
-    return NextResponse.redirect(new URL("/login?error=oauth_state", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/login?error=oauth_state", getAppUrl(req)));
   }
 
   let userInfo;
@@ -64,7 +65,7 @@ export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProvid
     const redirectUri = redirectUriFor(req, adapter.name.toLowerCase());
     userInfo = await adapter.exchangeCodeForUser(code, redirectUri);
   } catch {
-    return NextResponse.redirect(new URL("/login?error=oauth_failed", req.nextUrl.origin));
+    return NextResponse.redirect(new URL("/login?error=oauth_failed", getAppUrl(req)));
   }
 
   const existingOAuthAccount = await prisma.oAuthAccount.findUnique({
@@ -111,7 +112,7 @@ export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProvid
     }
   }
 
-  const res = NextResponse.redirect(new URL("/keywords", req.nextUrl.origin));
+  const res = NextResponse.redirect(new URL("/keywords", getAppUrl(req)));
   await createSession(
     userId,
     {

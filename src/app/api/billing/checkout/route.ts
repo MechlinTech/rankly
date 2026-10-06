@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireRole } from "@/lib/auth/require-role";
@@ -50,8 +51,8 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${req.nextUrl.origin}/billing?checkout=success`,
-    cancel_url: `${req.nextUrl.origin}/billing?checkout=canceled`,
+    success_url: `${getAppUrl(req)}/billing?checkout=success`,
+    cancel_url: `${getAppUrl(req)}/billing?checkout=canceled`,
     metadata: { tenantId: ctx.tenant.id },
     subscription_data: { metadata: { tenantId: ctx.tenant.id } },
   });

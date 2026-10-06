@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
 
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
   if (user && user.passwordHash) {
-    await createAndSendPasswordResetEmail(user.id, user.email, req.nextUrl.origin);
+    await createAndSendPasswordResetEmail(user.id, user.email, getAppUrl(req));
   }
 
   return NextResponse.json({ ok: true });

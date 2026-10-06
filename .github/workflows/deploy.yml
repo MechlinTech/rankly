@@ -61,6 +61,7 @@ jobs:
       - name: Write env file from GitHub Environment secrets
         env:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          APP_URL: ${{ secrets.APP_URL }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -91,6 +92,7 @@ jobs:
           $envFile = Join-Path $env:RUNNER_TEMP "rankly.dev.env"
           $pairs = @(
             "POSTGRES_USER=$env:POSTGRES_USER"
+            "APP_URL=$env:APP_URL"
             "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD"
             "POSTGRES_DB=$env:POSTGRES_DB"
             "DATABASE_URL=$databaseUrl"

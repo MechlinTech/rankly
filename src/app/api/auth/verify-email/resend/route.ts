@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { createAndSendVerificationEmail } from "@/lib/email/verification";
@@ -12,6 +13,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
   }
 
-  const result = await createAndSendVerificationEmail(user.id, user.email, req.nextUrl.origin);
+  const result = await createAndSendVerificationEmail(user.id, user.email, getAppUrl(req));
   return NextResponse.json({ ok: true, emailSent: result.sent, ...(result.sent ? {} : { verifyUrl: result.verifyUrl }) });
 }
