@@ -30,7 +30,7 @@ export async function setup() {
 
   server = spawn("npx", ["next", "dev", "--port", String(PORT)], {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, RESEND_API_KEY: "", APP_URL: BASE_URL },
     stdio: "pipe",
     shell: true,
   });
