@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems, Spinner } from "@/components/ui";
 import type { AuditRunResult } from "@/lib/seo/audit";
@@ -20,13 +20,9 @@ export default function SiteAuditPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    if (!result) return;
-    const maxPage = Math.max(1, Math.ceil(result.issues.length / pageSize));
-    if (page > maxPage) {
-      setPage(maxPage);
-    }
-  }, [result, pageSize, page]);
+  const totalIssues = result?.issues.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalIssues / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   async function runAudit() {
     if (!domain.trim()) return;
@@ -104,7 +100,7 @@ export default function SiteAuditPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginateItems(result.issues, page, pageSize).map((issue, i) => (
+                {paginateItems(result.issues, currentPage, pageSize).map((issue, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                     <td className="px-5 py-3 whitespace-nowrap">
                       <SeverityBadge severity={issue.severity} />
@@ -124,7 +120,7 @@ export default function SiteAuditPage() {
         )}
         {result && result.issues.length > 0 && (
           <Pagination
-            currentPage={page}
+            currentPage={currentPage}
             totalItems={result.issues.length}
             pageSize={pageSize}
             pageSizeOptions={[5, 10, 25, 50]}
