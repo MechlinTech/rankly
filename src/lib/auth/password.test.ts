@@ -5,7 +5,7 @@ import {
   isPasswordStrongEnough,
   passwordStrengthError,
 } from "./password";
-import { messageFromApiError, signupValidationMessage } from "./signup-validation";
+import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "./signup-validation";
 
 describe("password strength", () => {
   it("rejects a password made only of spaces, even when it is 10 characters or longer", () => {
@@ -63,5 +63,21 @@ describe("signup validation messages", () => {
         "Please check your details and try again."
       )
     ).toBe("Name is required. Please enter your name.");
+  });
+
+  it("reads the duplicate-email error from formErrors or fieldErrors", () => {
+    expect(
+      messageFromApiError(
+        { formErrors: [SIGNUP_DUPLICATE_EMAIL] },
+        "Please check your details and try again."
+      )
+    ).toBe(SIGNUP_DUPLICATE_EMAIL);
+
+    expect(
+      messageFromApiError(
+        { formErrors: [], fieldErrors: { email: [SIGNUP_DUPLICATE_EMAIL] } },
+        "Please check your details and try again."
+      )
+    ).toBe(SIGNUP_DUPLICATE_EMAIL);
   });
 });

@@ -3,7 +3,8 @@
 import { useEffect, useId, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardHeader, EmptyState, Input } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems } from "@/components/ui";
+import { validateCompanyName, formatCrmError } from "@/lib/crm/validation";
 
 type Stage = "LEAD" | "PROSPECT" | "CLIENT" | "CHURNED";
 
@@ -35,6 +36,8 @@ export default function CrmPage() {
   const [domain, setDomain] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const load = useCallback(async () => {
     const params = new URLSearchParams();
@@ -54,9 +57,22 @@ export default function CrmPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (companies && companies.length > 0) {
+      const maxPage = Math.max(1, Math.ceil(companies.length / pageSize));
+      if (page > maxPage) {
+        setPage(maxPage);
+      }
+    }
+  }, [companies, pageSize, page]);
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    const validationError = validateCompanyName(name);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setCreating(true);
     setError(null);
     try {
@@ -67,12 +83,14 @@ export default function CrmPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Couldn't create company.");
+        setError(formatCrmError(data.error, "Couldn't create company."));
         return;
       }
       setName("");
       setDomain("");
       await load();
+    } catch {
+      setError("Something went wrong. Please try again.");
     } finally {
       setCreating(false);
     }
@@ -93,7 +111,17 @@ export default function CrmPage() {
             <label htmlFor={nameId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
               Company name
             </label>
-            <Input id={nameId} value={name} onChange={(e) => setName(e.target.value)} placeholder="Acme Inc." />
+            <Input
+              id={nameId}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="Acme Inc."
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${nameId}-error` : undefined}
+            />
           </div>
           <div className="flex-1">
             <label htmlFor={domainId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
@@ -105,19 +133,29 @@ export default function CrmPage() {
             {creating ? "Adding…" : "Add company"}
           </Button>
         </form>
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p id={`${nameId}-error`} role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
       </Card>
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <Input
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search companies…"
           className="sm:max-w-xs"
         />
         <select
           value={stageFilter}
-          onChange={(e) => setStageFilter(e.target.value as Stage | "")}
+          onChange={(e) => {
+            setStageFilter(e.target.value as Stage | "");
+            setPage(1);
+          }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
         >
           <option value="">All stages</option>
@@ -138,28 +176,38 @@ export default function CrmPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Stage</th>
-                  <th className="px-5 py-3 font-medium">Contacts</th>
-                  <th className="px-5 py-3 font-medium">Open tasks</th>
-                  <th className="px-5 py-3 font-medium">Updated</th>
+                  <th className="px-5 py-3 font-medium min-w-[200px] max-w-[320px]">Name</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Stage</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Contacts</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Open tasks</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Updated</th>
                 </tr>
               </thead>
               <tbody>
-                {companies.map((c) => (
+                {paginateItems(companies, page, pageSize).map((c) => (
                   <tr key={c.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
-                    <td className="px-5 py-3">
-                      <Link href={`/crm/${c.id}`} className="font-medium text-slate-900 hover:underline dark:text-white">
-                        {c.name}
-                      </Link>
-                      {c.domain && <span className="ml-2 text-xs text-slate-500">{c.domain}</span>}
+                    <td className="px-5 py-3 min-w-[200px] max-w-[320px]">
+                      <div className="flex flex-col gap-0.5 max-w-[320px]">
+                        <Link
+                          href={`/crm/${c.id}`}
+                          title={c.name}
+                          className="font-medium text-slate-900 hover:underline dark:text-white line-clamp-2 break-words [overflow-wrap:anywhere]"
+                        >
+                          {c.name}
+                        </Link>
+                        {c.domain && (
+                          <span className="truncate text-xs text-slate-500" title={c.domain}>
+                            {c.domain}
+                          </span>
+                        )}
+                      </div>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 whitespace-nowrap">
                       <Badge tone={STAGE_TONE[c.stage]}>{c.stage}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{c._count.contacts}</td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{c._count.tasks}</td>
-                    <td className="px-5 py-3 text-slate-500 dark:text-slate-400">
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">{c._count.contacts}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-600 dark:text-slate-400">{c._count.tasks}</td>
+                    <td className="px-5 py-3 whitespace-nowrap text-slate-500 dark:text-slate-400">
                       {new Date(c.updatedAt).toLocaleDateString()}
                     </td>
                   </tr>
@@ -167,6 +215,19 @@ export default function CrmPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {companies && companies.length > 0 && (
+          <Pagination
+            currentPage={page}
+            totalItems={companies.length}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
         )}
       </Card>
     </div>

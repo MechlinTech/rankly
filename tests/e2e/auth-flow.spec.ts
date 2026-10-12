@@ -40,7 +40,7 @@ test.describe("auth flow (real browser)", () => {
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
   });
 
-  test("signing up with an already-used email fails without revealing why", async ({ page }) => {
+  test("signing up with an already-used email shows a clear error message with login link", async ({ page }) => {
     const user = await signUpViaUI(page);
     await logout(page);
 
@@ -51,8 +51,19 @@ test.describe("auth flow (real browser)", () => {
     await page.getByLabel("Password").fill("another-password-123");
     await page.getByRole("button", { name: "Create account" }).click();
 
-    await expect(page.getByText("Could not create account with these details.")).toBeVisible();
+    await expect(page.getByText("An account with this email address already exists. Please log in or use a different email address.")).toBeVisible();
+    const loginLink = page.getByRole("alert").getByRole("link", { name: "log in" });
+    await expect(loginLink).toHaveAttribute("href", "/login");
+
+    // Loading state resets and form remains usable
+    const submitBtn = page.getByRole("button", { name: "Create account" });
+    await expect(submitBtn).toBeEnabled();
     expect(page.url()).toContain("/signup");
+
+    // Clicking the link navigates to the login page
+    await loginLink.click();
+    await page.waitForURL("**/login", { waitUntil: "commit" });
+    expect(page.url()).toContain("/login");
   });
 
   test("unauthenticated visitors are bounced from the dashboard to /login", async ({ page }) => {

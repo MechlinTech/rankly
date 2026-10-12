@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = 3200;
+const PORT = process.env.PORT || 3000;
 export const BASE_URL = `http://localhost:${PORT}`;
 
 // Real browser E2E tests against a real `next dev` server + real Postgres.
@@ -33,7 +33,7 @@ export default defineConfig({
   webServer: {
     command: `npx next dev --port ${PORT}`,
     url: BASE_URL,
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 60_000,
   },
 });

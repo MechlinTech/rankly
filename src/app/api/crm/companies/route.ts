@@ -5,6 +5,8 @@ import { requireRole } from "@/lib/auth/require-role";
 import { suspensionCheck } from "@/lib/auth/suspension";
 import { prisma } from "@/lib/db";
 
+import { COMPANY_NAME_MAX_LENGTH, COMPANY_NAME_MAX_MESSAGE, COMPANY_NAME_REQUIRED_MESSAGE } from "@/lib/crm/validation";
+
 const STAGES = ["LEAD", "PROSPECT", "CLIENT", "CHURNED"] as const;
 
 export async function GET(req: NextRequest) {
@@ -31,7 +33,7 @@ export async function GET(req: NextRequest) {
 }
 
 const createSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z.string().trim().min(1, COMPANY_NAME_REQUIRED_MESSAGE).max(COMPANY_NAME_MAX_LENGTH, COMPANY_NAME_MAX_MESSAGE),
   domain: z.string().trim().max(255).optional(),
   stage: z.enum(STAGES).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),

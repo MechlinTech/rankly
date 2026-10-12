@@ -17,7 +17,7 @@ describe("auth (real server, real Postgres)", () => {
     expect(data.role).toBe("OWNER");
   });
 
-  it("rejects a duplicate signup email without revealing that it exists", async () => {
+  it("rejects a duplicate signup email with a clear duplicate-email error", async () => {
     const { email } = await signUp();
     const res = await fetch(`${BASE_URL}/api/auth/signup`, {
       method: "POST",
@@ -25,6 +25,29 @@ describe("auth (real server, real Postgres)", () => {
       body: JSON.stringify({ name: "Someone Else", email, password: "another-password-123", companyName: "Other Co" }),
     });
     expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data?.error?.formErrors).toContain(
+      "An account with this email address already exists. Please log in or use a different email address."
+    );
+  });
+
+  it("rejects a duplicate signup email regardless of case or whitespace", async () => {
+    const { email } = await signUp();
+    const res = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Someone Else",
+        email: `  ${email.toUpperCase()}  `,
+        password: "another-password-123",
+        companyName: "Other Co",
+      }),
+    });
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data?.error?.formErrors).toContain(
+      "An account with this email address already exists. Please log in or use a different email address."
+    );
   });
 
   it("login succeeds with the correct password and fails with the wrong one", async () => {

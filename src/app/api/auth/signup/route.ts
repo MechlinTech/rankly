@@ -1,9 +1,9 @@
 import { getAppUrl } from "@/lib/app-url";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { hashPassword } from "@/lib/auth/password";
-import { signupValidationMessage } from "@/lib/auth/signup-validation";
+import { signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "@/lib/auth/signup-validation";
 import { createSession } from "@/lib/auth/session";
 import { generateUniqueTenantSlug } from "@/lib/auth/tenant";
 import { isRateLimited, getClientIp } from "@/lib/auth/rate-limit";
@@ -37,9 +37,13 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    // Deliberately vague to avoid confirming which emails are registered.
     return NextResponse.json(
-      { error: { formErrors: ["Could not create account with these details."] } },
+      {
+        error: {
+          formErrors: [SIGNUP_DUPLICATE_EMAIL],
+          fieldErrors: { email: [SIGNUP_DUPLICATE_EMAIL] },
+        },
+      },
       { status: 400 }
     );
   }
@@ -47,30 +51,49 @@ export async function POST(req: NextRequest) {
   const passwordHash = await hashPassword(password);
   const slug = await generateUniqueTenantSlug(companyName);
 
-  const user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    const createdUser = await tx.user.create({
-      data: { name, email, passwordHash },
-    });
+  let user;
+  try {
+    user = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const createdUser = await tx.user.create({
+        data: { name, email, passwordHash },
+      });
 
-    const tenant = await tx.tenant.create({
-      data: { name: companyName, slug, status: "TRIALING" },
-    });
+      const tenant = await tx.tenant.create({
+        data: { name: companyName, slug, status: "TRIALING" },
+      });
 
-    await tx.membership.create({
-      data: { tenantId: tenant.id, userId: createdUser.id, role: "OWNER" },
-    });
+      await tx.membership.create({
+        data: { tenantId: tenant.id, userId: createdUser.id, role: "OWNER" },
+      });
 
-    await tx.auditLog.create({
-      data: {
-        tenantId: tenant.id,
-        actorId: createdUser.id,
-        action: "tenant.created",
-        target: tenant.id,
-      },
-    });
+      await tx.auditLog.create({
+        data: {
+          tenantId: tenant.id,
+          actorId: createdUser.id,
+          action: "tenant.created",
+          target: tenant.id,
+        },
+      });
 
-    return createdUser;
-  });
+      return createdUser;
+    });
+  } catch (err: unknown) {
+    const isUniqueViolation =
+      (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") ||
+      (typeof err === "object" && err !== null && "code" in err && (err as { code?: unknown }).code === "P2002");
+    if (isUniqueViolation) {
+      return NextResponse.json(
+        {
+          error: {
+            formErrors: [SIGNUP_DUPLICATE_EMAIL],
+            fieldErrors: { email: [SIGNUP_DUPLICATE_EMAIL] },
+          },
+        },
+        { status: 400 }
+      );
+    }
+    throw err;
+  }
 
   const res = NextResponse.json({ ok: true });
   await createSession(
