@@ -3,6 +3,8 @@ import { passwordStrengthError } from "./password";
 export const SIGNUP_NAME_REQUIRED = "Name is required. Please enter your name.";
 export const SIGNUP_COMPANY_REQUIRED = "Company name is required. Please enter your company name.";
 export const SIGNUP_EMAIL_REQUIRED = "Email is required. Please enter a valid email address.";
+export const SIGNUP_DUPLICATE_EMAIL =
+  "An account with this email address already exists. Please log in or use a different email address.";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

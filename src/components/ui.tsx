@@ -15,7 +15,7 @@ export function CardHeader({ title, description }: { title: string; description?
     <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-800">
       <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
       {description && (
-        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400 break-words [overflow-wrap:anywhere]">{description}</p>
       )}
     </div>
   );
@@ -49,12 +49,14 @@ export function Button({
   onClick,
   disabled,
   variant = "primary",
+  className = "",
 }: {
   children: ReactNode;
   type?: "button" | "submit";
   onClick?: () => void;
   disabled?: boolean;
   variant?: "primary" | "secondary";
+  className?: string;
 }) {
   const base =
     "inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
@@ -63,7 +65,7 @@ export function Button({
       ? "bg-slate-900 text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
       : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800";
   return (
-    <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${styles}`}>
+    <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${styles} ${className}`}>
       {children}
     </button>
   );
@@ -73,7 +75,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-slate-800 ${props.className ?? ""}`}
+      className={`w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-slate-800 ${props.className ?? ""}`}
     />
   );
 }
@@ -96,3 +98,6 @@ export function Spinner() {
     />
   );
 }
+
+export { Pagination, paginateItems, getPageNumbers } from "./pagination";
+export type { PaginationProps } from "./pagination";

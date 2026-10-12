@@ -104,15 +104,25 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{company.name}</h1>
-          {company.domain && <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{company.domain}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-3 sm:items-center">
+        <div className="min-w-0 flex-1">
+          <h1
+            title={company.name}
+            className="text-xl font-semibold text-slate-900 dark:text-white break-words [overflow-wrap:anywhere]"
+          >
+            {company.name}
+          </h1>
+          {company.domain && (
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400 break-words [overflow-wrap:anywhere]">
+              {company.domain}
+            </p>
+          )}
         </div>
         <select
           value={company.stage}
           onChange={(e) => updateStage(e.target.value as Stage)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950"
+          aria-label="Company stage"
+          className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100"
         >
           {STAGES.map((s) => (
             <option key={s} value={s}>
@@ -123,8 +133,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <Card>
+        <div className="flex flex-col gap-6 lg:col-span-2 min-w-0">
+          <Card className="min-w-0">
             <CardHeader title="Activity" description="Notes and history for this account." />
             <div className="p-5">
               <form onSubmit={addNote} className="flex gap-2">
@@ -132,19 +142,22 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   placeholder="Add a note…"
+                  className="flex-1 min-w-0"
                 />
-                <Button type="submit" disabled={!noteText.trim()}>
+                <Button type="submit" disabled={!noteText.trim()} className="shrink-0">
                   Add
                 </Button>
               </form>
               <ul className="mt-5 space-y-4">
                 {company.activities.map((a) => (
-                  <li key={a.id} className="border-l-2 border-slate-200 pl-3 dark:border-slate-700">
-                    <div className="flex items-center gap-2">
+                  <li key={a.id} className="min-w-0 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Badge tone={a.type === "STAGE_CHANGE" ? "info" : "neutral"}>{a.type}</Badge>
                       <span className="text-xs text-slate-500">{new Date(a.createdAt).toLocaleString()}</span>
                     </div>
-                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">{a.body}</p>
+                    <p className="mt-1 text-sm text-slate-700 dark:text-slate-300 break-words [overflow-wrap:anywhere] whitespace-pre-wrap">
+                      {a.body}
+                    </p>
                   </li>
                 ))}
                 {company.activities.length === 0 && (
@@ -154,26 +167,33 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader title="Tasks" />
             <div className="p-5">
               <form onSubmit={addTask} className="flex gap-2">
-                <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} placeholder="New task…" />
-                <Button type="submit" disabled={!taskTitle.trim()}>
+                <Input
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  placeholder="New task…"
+                  className="flex-1 min-w-0"
+                />
+                <Button type="submit" disabled={!taskTitle.trim()} className="shrink-0">
                   Add
                 </Button>
               </form>
               <ul className="mt-5 space-y-2">
                 {company.tasks.map((t) => (
-                  <li key={t.id} className="flex items-center gap-3">
+                  <li key={t.id} className="flex items-start gap-3 min-w-0">
                     <input
                       type="checkbox"
                       checked={t.status === "DONE"}
                       onChange={() => toggleTask(t.id, t.status)}
-                      className="h-4 w-4"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-950"
+                      aria-label={`Mark task ${t.title} as ${t.status === "DONE" ? "open" : "done"}`}
                     />
                     <span
-                      className={`text-sm ${
+                      title={t.title}
+                      className={`flex-1 min-w-0 text-sm break-words [overflow-wrap:anywhere] ${
                         t.status === "DONE" ? "text-slate-500 line-through" : "text-slate-800 dark:text-slate-200"
                       }`}
                     >
@@ -187,7 +207,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
           </Card>
         </div>
 
-        <Card className="h-fit">
+        <Card className="h-fit min-w-0">
           <CardHeader title="Contacts" />
           <div className="p-5">
             <form onSubmit={addContact} className="flex flex-col gap-2">
@@ -203,9 +223,21 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
             </form>
             <ul className="mt-5 space-y-3">
               {company.contacts.map((c) => (
-                <li key={c.id}>
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{c.name}</p>
-                  {c.email && <p className="text-xs text-slate-500 dark:text-slate-400">{c.email}</p>}
+                <li key={c.id} className="min-w-0">
+                  <p
+                    title={c.name}
+                    className="text-sm font-medium text-slate-800 dark:text-slate-200 break-words [overflow-wrap:anywhere]"
+                  >
+                    {c.name}
+                  </p>
+                  {c.email && (
+                    <p
+                      title={c.email}
+                      className="text-xs text-slate-500 dark:text-slate-400 break-words [overflow-wrap:anywhere]"
+                    >
+                      {c.email}
+                    </p>
+                  )}
                 </li>
               ))}
               {company.contacts.length === 0 && <p className="text-sm text-slate-500">No contacts yet.</p>}

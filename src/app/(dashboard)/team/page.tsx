@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardHeader, Input } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, Input, Pagination, paginateItems } from "@/components/ui";
 import { postJson, UnauthorizedError } from "@/lib/api-client";
 
 type Role = "OWNER" | "ADMIN" | "MANAGER" | "MEMBER" | "VIEWER";
@@ -41,6 +41,12 @@ export default function TeamPage() {
   const [inviteEmailSent, setInviteEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalMembers = data?.members?.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalMembers / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/team");
@@ -55,6 +61,7 @@ export default function TeamPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch on mount
     load();
   }, [load]);
+
 
   const canManage = data?.currentRole === "OWNER" || data?.currentRole === "ADMIN";
 
@@ -180,7 +187,7 @@ export default function TeamPage() {
               </tr>
             </thead>
             <tbody>
-              {data?.members.map((m) => (
+              {paginateItems(data?.members ?? [], currentPage, pageSize).map((m) => (
                 <tr key={m.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                   <td className="px-5 py-3 text-slate-800 dark:text-slate-200">{m.user.name ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{m.user.email}</td>
@@ -229,6 +236,19 @@ export default function TeamPage() {
             </tbody>
           </table>
         </div>
+        {data?.members && data.members.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={data.members.length}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        )}
       </Card>
 
       {canManage && (data?.invitations.length ?? 0) > 0 && (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems, Spinner } from "@/components/ui";
 import type { AuditRunResult } from "@/lib/seo/audit";
 import { postJson, UnauthorizedError } from "@/lib/api-client";
 
@@ -17,6 +17,12 @@ export default function SiteAuditPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AuditRunResult | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalIssues = result?.issues.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalIssues / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   async function runAudit() {
     if (!domain.trim()) return;
@@ -25,6 +31,7 @@ export default function SiteAuditPage() {
     try {
       const data = await postJson<AuditRunResult>("/api/seo/audit", { domain: domain.trim(), maxPages: 10 });
       setResult(data);
+      setPage(1);
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         router.push("/login");
@@ -58,12 +65,13 @@ export default function SiteAuditPage() {
             value={domain}
             onChange={(e) => setDomain(e.target.value)}
             aria-label="Domain to audit"
+            className="flex-1 min-w-0"
           />
-          <Button type="submit" disabled={loading || !domain.trim()}>
+          <Button type="submit" disabled={loading || !domain.trim()} className="shrink-0">
             {loading ? <Spinner /> : "Run Audit"}
           </Button>
         </form>
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400 break-words [overflow-wrap:anywhere]">{error}</p>}
       </Card>
 
       <Card>
@@ -85,28 +93,43 @@ export default function SiteAuditPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-800">
-                  <th className="px-5 py-3 font-medium">Severity</th>
-                  <th className="px-5 py-3 font-medium">Category</th>
-                  <th className="px-5 py-3 font-medium">URL</th>
-                  <th className="px-5 py-3 font-medium">Issue</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Severity</th>
+                  <th className="px-5 py-3 font-medium whitespace-nowrap">Category</th>
+                  <th className="px-5 py-3 font-medium min-w-[160px] max-w-[260px]">URL</th>
+                  <th className="px-5 py-3 font-medium min-w-[200px]">Issue</th>
                 </tr>
               </thead>
               <tbody>
-                {result.issues.map((issue, i) => (
+                {paginateItems(result.issues, currentPage, pageSize).map((issue, i) => (
                   <tr key={i} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3 whitespace-nowrap">
                       <SeverityBadge severity={issue.severity} />
                     </td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{issue.category}</td>
-                    <td className="max-w-[240px] truncate px-5 py-3 text-slate-500 dark:text-slate-400" title={issue.url}>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400 whitespace-nowrap">{issue.category}</td>
+                    <td className="max-w-[260px] truncate px-5 py-3 text-slate-500 dark:text-slate-400" title={issue.url}>
                       {issue.url}
                     </td>
-                    <td className="px-5 py-3 text-slate-800 dark:text-slate-200">{issue.message}</td>
+                    <td className="px-5 py-3 text-slate-800 dark:text-slate-200 break-words [overflow-wrap:anywhere] min-w-[200px]">
+                      {issue.message}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+        {result && result.issues.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={result.issues.length}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
         )}
       </Card>
     </div>

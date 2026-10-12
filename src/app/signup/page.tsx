@@ -1,12 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
 import { OAuthButtons } from "@/components/oauth-buttons";
-import { messageFromApiError, signupValidationMessage } from "@/lib/auth/signup-validation";
+import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "@/lib/auth/signup-validation";
 
 export default function SignupPage() {
+  const router = useRouter();
   const nameId = useId();
   const companyNameId = useId();
   const emailId = useId();
@@ -39,7 +41,7 @@ export default function SignupPage() {
         setError(messageFromApiError(data?.error, "Please check your details and try again."));
         return;
       }
-      window.location.assign("/keywords");
+      router.push("/keywords");
       return;
     } catch {
       setError("Something went wrong. Please try again.");
@@ -92,7 +94,17 @@ export default function SignupPage() {
           </div>
           {error && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-              {error}
+              {error === SIGNUP_DUPLICATE_EMAIL ? (
+                <>
+                  An account with this email address already exists. Please{" "}
+                  <Link href="/login" className="font-medium underline hover:text-red-700 dark:hover:text-red-300">
+                    log in
+                  </Link>{" "}
+                  or use a different email address.
+                </>
+              ) : (
+                error
+              )}
             </p>
           )}
           <Button type="submit" disabled={loading}>

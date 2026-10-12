@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, CardHeader, EmptyState, Input, Spinner } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems, Spinner } from "@/components/ui";
 import type { RankCheckResult } from "@/lib/seo/rankings";
 import { postJson, UnauthorizedError } from "@/lib/api-client";
 
@@ -25,6 +25,12 @@ export default function RankTrackingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<RankCheckResult | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalResults = result?.results.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalResults / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   async function runCheck() {
     const terms = termsInput
@@ -42,6 +48,7 @@ export default function RankTrackingPage() {
         device,
       });
       setResult(data);
+      setPage(1);
     } catch (err) {
       if (err instanceof UnauthorizedError) {
         router.push("/login");
@@ -145,7 +152,7 @@ export default function RankTrackingPage() {
                 </tr>
               </thead>
               <tbody>
-                {result.results.map((row) => (
+                {paginateItems(result.results, currentPage, pageSize).map((row) => (
                   <tr
                     key={row.term}
                     className="border-b border-slate-50 last:border-0 dark:border-slate-800/60"
@@ -160,6 +167,19 @@ export default function RankTrackingPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {result && result.results.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={result.results.length}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
         )}
       </Card>
     </div>

@@ -37,12 +37,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 sm:flex">
-        <div className="mb-8 px-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 sm:h-screen sm:overflow-hidden">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 sm:flex sm:h-full">
+        <div className="mb-8 shrink-0 px-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
           Rankly
         </div>
-        <nav className="flex flex-1 flex-col gap-1">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto min-h-0">
           {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             </Link>
           ))}
         </nav>
-        <div className="border-t border-slate-100 pt-4 dark:border-slate-800">
+        <div className="shrink-0 border-t border-slate-100 pt-4 dark:border-slate-800">
           <p className="truncate px-2 text-xs font-medium text-slate-700 dark:text-slate-300">{ctx.tenant.name}</p>
           <p className="truncate px-2 text-xs text-slate-500">{ctx.user.email}</p>
           <div className="mt-2 px-2">
@@ -79,7 +79,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </span>
       </div>
 
-      <main className="safe-bottom flex-1 pb-10 pt-20 sm:pt-8">
+      <main className="safe-bottom flex-1 pb-10 pt-20 sm:pt-8 min-w-0 sm:h-full sm:overflow-y-auto">
         {!ctx.user.emailVerified && <VerifyEmailBanner />}
         <div className="mx-auto max-w-5xl px-4 sm:px-8">{children}</div>
       </main>

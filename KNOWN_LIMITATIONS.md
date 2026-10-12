@@ -82,7 +82,7 @@ Not yet built: email verification, forgot password, CRM UI, transactional email 
 
 - CSRF: relies on `sameSite=lax` cookies + the fact that all mutating routes are same-origin fetches from the dashboard; no explicit CSRF token yet. Acceptable for now but should be revisited once external integrations (webhooks, browser extensions) are added.
 - Rate limiting is **in-memory, per-process** (`src/lib/auth/rate-limit.ts`) — fine for a single dev instance, but will not correctly limit abuse across multiple app instances/load balancers. Needs a shared store (Redis) before horizontal scaling.
-- Login/signup responses are deliberately generic ("Invalid email or password" / "Could not create account with these details") to avoid user enumeration.
+- Login responses are deliberately generic ("Invalid email or password") to avoid user enumeration, whereas signup clarifies when an email address is already registered ("An account with this email address already exists. Please log in or use a different email address.") to guide users to log in.
 - Baseline security headers (`X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, a restrictive `Permissions-Policy`) are configured in `next.config.ts` and verified via `curl -i`. No CSP yet — deliberately deferred until it can be tuned against Stripe Checkout and OAuth redirects rather than added speculatively.
 - No email verification means anyone can sign up with an email they don't own; nothing currently depends on `emailVerified` being true, so this isn't exploitable yet, but should be closed before allowing any workflow that trusts email ownership (e.g. team invitations by email).
 
