@@ -1,12 +1,14 @@
 "use client";
 
 import { useId, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "@/lib/auth/signup-validation";
 
 export default function SignupPage() {
+  const router = useRouter();
   const nameId = useId();
   const companyNameId = useId();
   const emailId = useId();
@@ -39,7 +41,7 @@ export default function SignupPage() {
         setError(messageFromApiError(data?.error, "Please check your details and try again."));
         return;
       }
-      window.location.assign("/keywords");
+      router.push("/keywords");
       return;
     } catch {
       setError("Something went wrong. Please try again.");

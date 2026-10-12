@@ -39,6 +39,10 @@ export default function CrmPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const totalCompanies = companies?.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalCompanies / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
+
   const load = useCallback(async () => {
     const params = new URLSearchParams();
     if (search.trim()) params.set("q", search.trim());
@@ -57,14 +61,6 @@ export default function CrmPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (companies && companies.length > 0) {
-      const maxPage = Math.max(1, Math.ceil(companies.length / pageSize));
-      if (page > maxPage) {
-        setPage(maxPage);
-      }
-    }
-  }, [companies, pageSize, page]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -184,7 +180,7 @@ export default function CrmPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginateItems(companies, page, pageSize).map((c) => (
+                {paginateItems(companies, currentPage, pageSize).map((c) => (
                   <tr key={c.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                     <td className="px-5 py-3 min-w-[200px] max-w-[320px]">
                       <div className="flex flex-col gap-0.5 max-w-[320px]">
@@ -218,7 +214,7 @@ export default function CrmPage() {
         )}
         {companies && companies.length > 0 && (
           <Pagination
-            currentPage={page}
+            currentPage={currentPage}
             totalItems={companies.length}
             pageSize={pageSize}
             pageSizeOptions={[5, 10, 25, 50]}
