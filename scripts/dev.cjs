@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Local dev entrypoint: loads .env.dev into process.env, then runs `next dev`.
 //
 // Why not `node --env-file=.env.dev .../next dev`? Next forwards the parent's

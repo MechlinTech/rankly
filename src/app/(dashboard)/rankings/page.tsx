@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems, Spinner } from "@/components/ui";
 import type { RankCheckResult } from "@/lib/seo/rankings";
@@ -28,13 +28,9 @@ export default function RankTrackingPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  useEffect(() => {
-    if (!result) return;
-    const maxPage = Math.max(1, Math.ceil(result.results.length / pageSize));
-    if (page > maxPage) {
-      setPage(maxPage);
-    }
-  }, [result, pageSize, page]);
+  const totalResults = result?.results.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalResults / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   async function runCheck() {
     const terms = termsInput
@@ -156,7 +152,7 @@ export default function RankTrackingPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginateItems(result.results, page, pageSize).map((row) => (
+                {paginateItems(result.results, currentPage, pageSize).map((row) => (
                   <tr
                     key={row.term}
                     className="border-b border-slate-50 last:border-0 dark:border-slate-800/60"
@@ -174,7 +170,7 @@ export default function RankTrackingPage() {
         )}
         {result && result.results.length > 0 && (
           <Pagination
-            currentPage={page}
+            currentPage={currentPage}
             totalItems={result.results.length}
             pageSize={pageSize}
             pageSizeOptions={[5, 10, 25, 50]}

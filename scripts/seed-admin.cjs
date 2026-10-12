@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Creates or updates the platform super-admin from ADMIN_EMAIL / ADMIN_PASSWORD.
 // Uses `pg` directly so the migrate image does not need the generated Prisma client
 // (Prisma 7 emits TypeScript under src/generated, which Node cannot require).
