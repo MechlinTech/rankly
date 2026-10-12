@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "fix/rankly-v2-bugs",
+    "main",
+    "refactor/remove-malware"
+  ],
+  "parent": {
+    "fix/rankly-v2-bugs": "main",
+    "main": null,
+    "refactor/remove-malware": "main"
+  },
+  "order": [
+    "main",
+    "fix/rankly-v2-bugs",
+    "refactor/remove-malware"
+  ]
+}

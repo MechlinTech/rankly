@@ -44,6 +44,10 @@ export default function TeamPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const totalMembers = data?.members?.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalMembers / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
+
   const load = useCallback(async () => {
     const res = await fetch("/api/team");
     if (res.status === 401) {
@@ -58,14 +62,6 @@ export default function TeamPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (data?.members && data.members.length > 0) {
-      const maxPage = Math.max(1, Math.ceil(data.members.length / pageSize));
-      if (page > maxPage) {
-        setPage(maxPage);
-      }
-    }
-  }, [data?.members, pageSize, page]);
 
   const canManage = data?.currentRole === "OWNER" || data?.currentRole === "ADMIN";
 
@@ -191,7 +187,7 @@ export default function TeamPage() {
               </tr>
             </thead>
             <tbody>
-              {paginateItems(data?.members ?? [], page, pageSize).map((m) => (
+              {paginateItems(data?.members ?? [], currentPage, pageSize).map((m) => (
                 <tr key={m.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                   <td className="px-5 py-3 text-slate-800 dark:text-slate-200">{m.user.name ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{m.user.email}</td>
@@ -242,7 +238,7 @@ export default function TeamPage() {
         </div>
         {data?.members && data.members.length > 0 && (
           <Pagination
-            currentPage={page}
+            currentPage={currentPage}
             totalItems={data.members.length}
             pageSize={pageSize}
             pageSizeOptions={[5, 10, 25, 50]}

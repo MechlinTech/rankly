@@ -34,7 +34,7 @@ test.describe("auth flow (real browser)", () => {
     await logout(page);
 
     await page.getByLabel("Email").fill(user.email);
-    await page.getByLabel("Password").fill("definitely-wrong-password");
+    await page.getByLabel("Password", { exact: true }).fill("definitely-wrong-password");
     await page.getByRole("button", { name: "Sign in" }).click();
 
     await expect(page.getByText("Invalid email or password.")).toBeVisible();
