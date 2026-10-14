@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useId, useState } from "react";
+import { Suspense, useEffect, useId, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
@@ -14,7 +14,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 
 function LoginForm() {
   const params = useSearchParams();
-  const next = params.get("next") || "/keywords";
+  const nextParam = params.get("next");
   const oauthError = params.get("error");
   const emailId = useId();
   const passwordId = useId();
@@ -25,6 +25,32 @@ function LoginForm() {
     oauthError ? OAUTH_ERROR_MESSAGES[oauthError] ?? "Sign-in failed." : null
   );
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.user) {
+          const isSuper = Boolean(data.isSuperAdmin ?? data.user?.isSuperAdmin);
+          const safeNext =
+            nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("\\")
+              ? nextParam
+              : null;
+
+          if (isSuper) {
+            const dest = safeNext && (safeNext === "/admin" || safeNext.startsWith("/admin/"))
+              ? safeNext
+              : "/admin";
+            window.location.assign(dest);
+          } else {
+            const isAdminRoute = safeNext === "/admin" || safeNext?.startsWith("/admin/");
+            const dest = safeNext && !isAdminRoute ? safeNext : "/keywords";
+            window.location.assign(dest);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [nextParam]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,7 +67,26 @@ function LoginForm() {
         setError(data?.error?.formErrors?.[0] ?? "Something went wrong.");
         return;
       }
-      window.location.assign(next.startsWith("/") ? next : "/keywords");
+
+      const isSuperAdmin = Boolean(data?.isSuperAdmin ?? data?.user?.isSuperAdmin);
+      const safeNext =
+        nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//") && !nextParam.includes("\\")
+          ? nextParam
+          : null;
+
+      let destination = isSuperAdmin ? "/admin" : "/keywords";
+      if (isSuperAdmin) {
+        if (safeNext && (safeNext === "/admin" || safeNext.startsWith("/admin/"))) {
+          destination = safeNext;
+        }
+      } else {
+        const isAdminRoute = safeNext === "/admin" || safeNext?.startsWith("/admin/");
+        if (safeNext && !isAdminRoute) {
+          destination = safeNext;
+        }
+      }
+
+      window.location.assign(destination);
       return;
     } catch {
       setError("Something went wrong. Please try again.");

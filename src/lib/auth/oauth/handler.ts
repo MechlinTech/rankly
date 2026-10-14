@@ -112,7 +112,12 @@ export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProvid
     }
   }
 
-  const res = NextResponse.redirect(new URL("/keywords", getAppUrl(req)));
+  const targetUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { isSuperAdmin: true },
+  });
+  const redirectDestination = targetUser?.isSuperAdmin ? "/admin" : "/keywords";
+  const res = NextResponse.redirect(new URL(redirectDestination, getAppUrl(req)));
   await createSession(
     userId,
     {

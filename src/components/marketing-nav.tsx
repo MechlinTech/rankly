@@ -5,14 +5,17 @@ import { useEffect, useState, useCallback } from "react";
 
 export function MarketingNav() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   const check = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/me");
       const data = await res.json();
       setIsLoggedIn(!!data.user);
+      setIsSuperAdmin(Boolean(data.isSuperAdmin ?? data.user?.isSuperAdmin));
     } catch {
       setIsLoggedIn(false);
+      setIsSuperAdmin(false);
     }
   }, []);
 
@@ -41,10 +44,10 @@ export function MarketingNav() {
         <div className="flex items-center gap-3">
           {isLoggedIn ? (
             <Link
-              href="/keywords"
+              href={isSuperAdmin ? "/admin" : "/keywords"}
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
             >
-              Dashboard
+              {isSuperAdmin ? "Admin Panel" : "Dashboard"}
             </Link>
           ) : (
             <>
