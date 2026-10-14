@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSuperAdmin } from "@/lib/auth/super-admin";
 import { prisma } from "@/lib/db";
+import type { TenantStatus } from "@/generated/prisma/client";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, response } = await requireSuperAdmin();
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 const patchSchema = z.object({
-  status: z.enum(["ACTIVE", "SUSPENDED"]),
+  status: z.enum(["ACTIVE", "SUSPENDED", "TRIALING", "CANCELED"]),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -61,15 +62,108 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const tenant = await prisma.tenant.update({ where: { id }, data: { status: parsed.data.status } });
+  const existingTenant = await prisma.tenant.findUnique({ where: { id } });
+  if (!existingTenant) {
+    return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+  }
 
-  await prisma.auditLog.create({
-    data: {
-      tenantId: id,
-      actorId: user.id,
-      action: parsed.data.status === "SUSPENDED" ? "tenant.suspended_by_admin" : "tenant.reactivated_by_admin",
-      target: id,
-    },
+  const requestedStatus = parsed.data.status;
+
+  if (requestedStatus === "SUSPENDED") {
+    // Preserve original pre-suspension status across repeated suspensions
+    let previousStatus: TenantStatus = existingTenant.status;
+    if (existingTenant.status === "SUSPENDED") {
+      const lastSuspensionLog = await prisma.auditLog.findFirst({
+        where: { tenantId: id, action: "tenant.suspended_by_admin" },
+        orderBy: { createdAt: "desc" },
+      });
+      const recorded = (lastSuspensionLog?.metadata as { previousStatus?: TenantStatus } | null)?.previousStatus;
+      if (recorded && recorded !== "SUSPENDED") {
+        previousStatus = recorded;
+      } else {
+        previousStatus = "ACTIVE";
+      }
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id },
+      data: { status: "SUSPENDED" },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId: id,
+        actorId: user.id,
+        action: "tenant.suspended_by_admin",
+        target: id,
+        metadata: { previousStatus },
+      },
+    });
+
+    return NextResponse.json({ ok: true, tenant });
+  }
+
+  // Reactivation flow: when a suspended tenant is reactivated (status !== "SUSPENDED")
+  if (existingTenant.status === "SUSPENDED") {
+    const lastSuspensionLog = await prisma.auditLog.findFirst({
+      where: { tenantId: id, action: "tenant.suspended_by_admin" },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const previousStatus =
+      (lastSuspensionLog?.metadata as { previousStatus?: TenantStatus } | null)?.previousStatus;
+
+    let targetStatus: TenantStatus;
+
+    // Check if tenant was trialing before suspension
+    const wasTrialing =
+      previousStatus === "TRIALING" ||
+      (!previousStatus && !existingTenant.stripeSubscriptionId);
+
+    if (wasTrialing) {
+      // Check trial expiration rules
+      const isTrialExpired =
+        existingTenant.trialEndsAt !== null &&
+        existingTenant.trialEndsAt !== undefined &&
+        new Date(existingTenant.trialEndsAt) <= new Date();
+
+      if (isTrialExpired) {
+        // Trial expired: follow existing expiration/subscription rules
+        targetStatus = existingTenant.stripeSubscriptionId ? "ACTIVE" : "CANCELED";
+      } else {
+        // Trial remains valid: restore TRIALING
+        targetStatus = "TRIALING";
+      }
+    } else if (previousStatus === "ACTIVE") {
+      targetStatus = "ACTIVE";
+    } else if (previousStatus === "CANCELED") {
+      targetStatus = "CANCELED";
+    } else {
+      targetStatus = requestedStatus;
+    }
+
+    const tenant = await prisma.tenant.update({
+      where: { id },
+      data: { status: targetStatus },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        tenantId: id,
+        actorId: user.id,
+        action: "tenant.reactivated_by_admin",
+        target: id,
+        metadata: { restoredStatus: targetStatus, previousStatus },
+      },
+    });
+
+    return NextResponse.json({ ok: true, tenant });
+  }
+
+  // Non-suspension status update
+  const tenant = await prisma.tenant.update({
+    where: { id },
+    data: { status: requestedStatus },
   });
 
   return NextResponse.json({ ok: true, tenant });
