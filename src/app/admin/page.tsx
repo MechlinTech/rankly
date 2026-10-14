@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Badge, Card, CardHeader } from "@/components/ui";
+import { Badge, Card, CardHeader, Pagination, paginateItems } from "@/components/ui";
 
 interface TenantRow {
   id: string;
@@ -38,6 +38,12 @@ function statusTone(status: string) {
 
 export default function AdminDashboardPage() {
   const [data, setData] = useState<AdminData | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalTenants = data?.tenants?.length ?? 0;
+  const maxPage = Math.max(1, Math.ceil(totalTenants / pageSize));
+  const currentPage = Math.min(Math.max(1, page), maxPage);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/tenants");
@@ -92,7 +98,7 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {data?.tenants.map((t) => (
+              {paginateItems(data?.tenants ?? [], currentPage, pageSize).map((t) => (
                 <tr key={t.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                   <td className="px-5 py-3">
                     <Link href={`/admin/tenants/${t.id}`} className="font-medium text-slate-900 hover:underline dark:text-white">
@@ -118,6 +124,19 @@ export default function AdminDashboardPage() {
             </tbody>
           </table>
         </div>
+        {data?.tenants && data.tenants.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalItems={data.tenants.length}
+            pageSize={pageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setPage}
+            onPageSizeChange={(newSize) => {
+              setPageSize(newSize);
+              setPage(1);
+            }}
+          />
+        )}
       </Card>
     </div>
   );
