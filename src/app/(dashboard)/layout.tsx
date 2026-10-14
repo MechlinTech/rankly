@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getCurrentTenantContext } from "@/lib/auth/tenant";
+import { getCurrentUser } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 
@@ -17,6 +18,10 @@ const NAV_ITEMS = [
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const ctx = await getCurrentTenantContext();
   if (!ctx) {
+    const user = await getCurrentUser();
+    if (user?.isSuperAdmin) {
+      redirect("/admin");
+    }
     redirect("/login");
   }
 

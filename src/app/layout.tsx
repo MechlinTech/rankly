@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rankly — SEO & AI-search intelligence",
+  title: "Rankly - SEO & AI-search intelligence",
   description:
     "Keyword research, rank tracking, and technical site audits for SEO and marketing teams.",
   manifest: "/manifest.webmanifest",
