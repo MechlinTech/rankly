@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useEffect, useState, useCallback } from "react";
-import { Badge, Button, Card, CardHeader } from "@/components/ui";
+import Link from "next/link";
+import { Badge, Button, Card, CardHeader, Pagination, paginateItems } from "@/components/ui";
 
 interface TenantDetail {
   id: string;
@@ -22,10 +23,29 @@ interface TenantDetail {
   recentEvents: Array<{ id: string; action: string; createdAt: string; metadata: unknown }>;
 }
 
+function statusTone(status: string) {
+  if (status === "ACTIVE") return "success" as const;
+  if (status === "TRIALING") return "info" as const;
+  if (status === "SUSPENDED") return "critical" as const;
+  return "neutral" as const;
+}
+
 export default function AdminTenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [tenant, setTenant] = useState<TenantDetail | null>(null);
   const [busy, setBusy] = useState(false);
+  const [membersPage, setMembersPage] = useState(1);
+  const [membersPageSize, setMembersPageSize] = useState(10);
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsPageSize, setEventsPageSize] = useState(10);
+
+  const totalMembers = tenant?.members?.length ?? 0;
+  const maxMembersPage = Math.max(1, Math.ceil(totalMembers / membersPageSize));
+  const currentMembersPage = Math.min(Math.max(1, membersPage), maxMembersPage);
+
+  const totalEvents = tenant?.recentEvents?.length ?? 0;
+  const maxEventsPage = Math.max(1, Math.ceil(totalEvents / eventsPageSize));
+  const currentEventsPage = Math.min(Math.max(1, eventsPage), maxEventsPage);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/tenants/${id}`);
@@ -54,6 +74,15 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
 
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+        >
+          <span aria-hidden="true">&larr;</span> Back to platform overview
+        </Link>
+      </div>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-900 dark:text-white">{tenant.name}</h1>
@@ -70,8 +99,11 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
           <p className="mt-1 font-semibold text-slate-900 dark:text-white">{tenant.plan}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Status</p>
-          <Badge tone={tenant.status === "SUSPENDED" ? "critical" : "success"}>{tenant.status}</Badge>
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Workspace Status</p>
+          <div className="mt-1">
+            <Badge tone={statusTone(tenant.status)}>{tenant.status}</Badge>
+          </div>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Subscription lifecycle</p>
         </Card>
         <Card className="p-4">
           <p className="text-xs font-medium text-slate-500 dark:text-slate-400">Projects</p>
@@ -86,7 +118,7 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
       </div>
 
       <Card>
-        <CardHeader title="Members" />
+        <CardHeader title="Members" description="Workspace team members and account access status." />
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -94,11 +126,11 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
                 <th className="px-5 py-3 font-medium">Name</th>
                 <th className="px-5 py-3 font-medium">Email</th>
                 <th className="px-5 py-3 font-medium">Role</th>
-                <th className="px-5 py-3 font-medium">Status</th>
+                <th className="px-5 py-3 font-medium">Member Status</th>
               </tr>
             </thead>
             <tbody>
-              {tenant.members.map((m) => (
+              {paginateItems(tenant.members, currentMembersPage, membersPageSize).map((m) => (
                 <tr key={m.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                   <td className="px-5 py-3 text-slate-800 dark:text-slate-200">{m.user.name ?? "—"}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{m.user.email}</td>
@@ -113,6 +145,19 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
             </tbody>
           </table>
         </div>
+        {tenant.members && tenant.members.length > 0 && (
+          <Pagination
+            currentPage={currentMembersPage}
+            totalItems={tenant.members.length}
+            pageSize={membersPageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setMembersPage}
+            onPageSizeChange={(newSize) => {
+              setMembersPageSize(newSize);
+              setMembersPage(1);
+            }}
+          />
+        )}
       </Card>
 
       <Card>
@@ -126,7 +171,7 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
               </tr>
             </thead>
             <tbody>
-              {tenant.recentEvents.map((e) => (
+              {paginateItems(tenant.recentEvents, currentEventsPage, eventsPageSize).map((e) => (
                 <tr key={e.id} className="border-b border-slate-50 last:border-0 dark:border-slate-800/60">
                   <td className="px-5 py-3 text-slate-800 dark:text-slate-200">{e.action}</td>
                   <td className="px-5 py-3 text-slate-500 dark:text-slate-400">
@@ -137,6 +182,19 @@ export default function AdminTenantDetailPage({ params }: { params: Promise<{ id
             </tbody>
           </table>
         </div>
+        {tenant.recentEvents && tenant.recentEvents.length > 0 && (
+          <Pagination
+            currentPage={currentEventsPage}
+            totalItems={tenant.recentEvents.length}
+            pageSize={eventsPageSize}
+            pageSizeOptions={[5, 10, 25, 50]}
+            onPageChange={setEventsPage}
+            onPageSizeChange={(newSize) => {
+              setEventsPageSize(newSize);
+              setEventsPage(1);
+            }}
+          />
+        )}
       </Card>
     </div>
   );

@@ -41,7 +41,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(GENERIC_ERROR, { status: 401 });
   }
 
-  const res = NextResponse.json({ ok: true });
+  const res = NextResponse.json({
+    ok: true,
+    isSuperAdmin: user.isSuperAdmin,
+    redirectTo: user.isSuperAdmin ? "/admin" : "/keywords",
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      isSuperAdmin: user.isSuperAdmin,
+    },
+  });
   await createSession(
     user.id,
     {
