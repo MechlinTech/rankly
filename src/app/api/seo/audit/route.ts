@@ -11,9 +11,10 @@ import { assertCanRunAudit, EntitlementError } from "@/lib/billing/entitlements"
 const requestSchema = z.object({
   domain: z
     .string()
-    .min(3)
-    .max(255)
-    .regex(/^[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$/, "Must be a bare domain, e.g. example.com"),
+    .trim()
+    .min(3, "Enter a valid domain.")
+    .max(255, "Enter a valid domain.")
+    .regex(/^[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$/, "Enter a valid domain."),
   maxPages: z.number().int().min(1).max(200).optional(),
 });
 
