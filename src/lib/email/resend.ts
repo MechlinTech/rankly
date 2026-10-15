@@ -26,6 +26,7 @@ export interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
+  text?: string;
 }
 
 export interface SendEmailResult {
@@ -55,6 +56,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
     to: input.to,
     subject: input.subject,
     html: input.html,
+    ...(input.text ? { text: input.text } : {}),
   });
 
   if (result.error) {
