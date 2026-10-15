@@ -5,6 +5,8 @@ import { requireRole } from "@/lib/auth/require-role";
 import { suspensionCheck } from "@/lib/auth/suspension";
 import { prisma } from "@/lib/db";
 
+import { CONTACT_EMAIL_INVALID_MESSAGE } from "@/lib/crm/validation";
+
 export async function GET(req: NextRequest) {
   const ctx = await getCurrentTenantContext();
   if (!ctx) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
@@ -20,8 +22,8 @@ export async function GET(req: NextRequest) {
 }
 
 const createSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  email: z.string().trim().email().max(255).optional().or(z.literal("")),
+  name: z.string().trim().min(1, "Contact name is required.").max(200),
+  email: z.string().trim().email(CONTACT_EMAIL_INVALID_MESSAGE).max(255).optional().or(z.literal("")),
   phone: z.string().trim().max(50).optional(),
   title: z.string().trim().max(120).optional(),
   companyId: z.string().trim().min(1).optional(),

@@ -11,6 +11,16 @@ function SeverityBadge({ severity }: { severity: "CRITICAL" | "WARNING" | "INFO"
   return <Badge tone={tone}>{severity}</Badge>;
 }
 
+const DOMAIN_REGEX = /^[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$/;
+
+export function validateAuditDomain(domain: string): string | null {
+  const trimmed = domain.trim();
+  if (!trimmed || trimmed.length < 3 || trimmed.length > 255 || !DOMAIN_REGEX.test(trimmed)) {
+    return "Enter a valid domain.";
+  }
+  return null;
+}
+
 export default function SiteAuditPage() {
   const router = useRouter();
   const [domain, setDomain] = useState("");
@@ -25,11 +35,16 @@ export default function SiteAuditPage() {
   const currentPage = Math.min(Math.max(1, page), maxPage);
 
   async function runAudit() {
-    if (!domain.trim()) return;
+    const trimmed = domain.trim();
+    const validationError = validateAuditDomain(trimmed);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const data = await postJson<AuditRunResult>("/api/seo/audit", { domain: domain.trim(), maxPages: 10 });
+      const data = await postJson<AuditRunResult>("/api/seo/audit", { domain: trimmed, maxPages: 10 });
       setResult(data);
       setPage(1);
     } catch (err) {
@@ -37,7 +52,7 @@ export default function SiteAuditPage() {
         router.push("/login");
         return;
       }
-      setError(err instanceof Error ? err.message : "Couldn't audit that domain.");
+      setError(err instanceof Error ? err.message : "Enter a valid domain.");
     } finally {
       setLoading(false);
     }
@@ -63,15 +78,23 @@ export default function SiteAuditPage() {
           <Input
             placeholder="example.com"
             value={domain}
-            onChange={(e) => setDomain(e.target.value)}
+            onChange={(e) => {
+              setDomain(e.target.value);
+              if (error) setError(null);
+            }}
             aria-label="Domain to audit"
+            aria-invalid={Boolean(error)}
             className="flex-1 min-w-0"
           />
           <Button type="submit" disabled={loading || !domain.trim()} className="shrink-0">
             {loading ? <Spinner /> : "Run Audit"}
           </Button>
         </form>
-        {error && <p className="mt-3 text-sm text-red-600 dark:text-red-400 break-words [overflow-wrap:anywhere]">{error}</p>}
+        {error && (
+          <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400 break-words [overflow-wrap:anywhere]">
+            {error}
+          </p>
+        )}
       </Card>
 
       <Card>

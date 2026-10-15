@@ -2,6 +2,8 @@ export const COMPANY_NAME_MAX_LENGTH = 150;
 export const COMPANY_NAME_REQUIRED_MESSAGE = "Company name is required.";
 export const COMPANY_NAME_MAX_MESSAGE = `Company name must be ${COMPANY_NAME_MAX_LENGTH} characters or fewer.`;
 
+export const CONTACT_EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
+
 export function validateCompanyName(name: string): string | null {
   const trimmed = name.trim();
   if (!trimmed) {
@@ -9,6 +11,17 @@ export function validateCompanyName(name: string): string | null {
   }
   if (trimmed.length > COMPANY_NAME_MAX_LENGTH) {
     return COMPANY_NAME_MAX_MESSAGE;
+  }
+  return null;
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function validateContactEmail(email: string): string | null {
+  const trimmed = email.trim();
+  if (!trimmed) return null; // Email is optional
+  if (!EMAIL_PATTERN.test(trimmed) || trimmed.length > 255) {
+    return CONTACT_EMAIL_INVALID_MESSAGE;
   }
   return null;
 }
