@@ -25,7 +25,14 @@ export async function GET(req: NextRequest) {
       ...(stage && STAGES.includes(stage as (typeof STAGES)[number]) ? { stage: stage as (typeof STAGES)[number] } : {}),
       ...(tag ? { tags: { has: tag } } : {}),
     },
-    include: { _count: { select: { contacts: true, tasks: true } } },
+    include: {
+      _count: {
+        select: {
+          contacts: true,
+          tasks: { where: { status: { not: "DONE" } } },
+        },
+      },
+    },
     orderBy: { updatedAt: "desc" },
   });
 
