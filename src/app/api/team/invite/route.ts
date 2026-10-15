@@ -59,8 +59,8 @@ export async function POST(req: NextRequest) {
   });
 
   const inviteUrl = `${getAppUrl(req)}/invite/${invitation.token}`;
-  const { subject, html } = teamInviteTemplate(inviteUrl, ctx.tenant.name, ctx.user.email);
-  const emailResult = await sendEmail({ to: email, subject, html }).catch(() => ({ sent: false as const }));
+  const { subject, html, text } = teamInviteTemplate(inviteUrl, ctx.tenant.name, ctx.user.email);
+  const emailResult = await sendEmail({ to: email, subject, html, text }).catch(() => ({ sent: false as const }));
 
   // If no email provider is configured (or sending failed), the invite link is
   // returned directly so it can still be shared manually — see KNOWN_LIMITATIONS.md.

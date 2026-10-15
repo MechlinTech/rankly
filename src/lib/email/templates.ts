@@ -13,7 +13,7 @@ function button(url: string, label: string): string {
   return `<a href="${url}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;">${label}</a>`;
 }
 
-export function verifyEmailTemplate(verifyUrl: string): { subject: string; html: string } {
+export function verifyEmailTemplate(verifyUrl: string): { subject: string; html: string; text: string } {
   return {
     subject: "Verify your email for Rankly",
     html: baseLayout(`
@@ -21,10 +21,11 @@ export function verifyEmailTemplate(verifyUrl: string): { subject: string; html:
       <div style="margin: 20px 0;">${button(verifyUrl, "Verify email")}</div>
       <p style="font-size: 12px; color: #94a3b8;">This link expires in 24 hours.</p>
     `),
+    text: `Rankly\n\nConfirm your email address to finish setting up your Rankly account:\n${verifyUrl}\n\nThis link expires in 24 hours.\nIf you didn't expect this email, you can safely ignore it.`,
   };
 }
 
-export function passwordResetTemplate(resetUrl: string): { subject: string; html: string } {
+export function passwordResetTemplate(resetUrl: string): { subject: string; html: string; text: string } {
   return {
     subject: "Reset your Rankly password",
     html: baseLayout(`
@@ -32,10 +33,11 @@ export function passwordResetTemplate(resetUrl: string): { subject: string; html
       <div style="margin: 20px 0;">${button(resetUrl, "Reset password")}</div>
       <p style="font-size: 12px; color: #94a3b8;">This link expires in 1 hour. If you didn't request this, your password is still safe — no action is needed.</p>
     `),
+    text: `Rankly\n\nWe received a request to reset your Rankly password:\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, your password is still safe — no action is needed.`,
   };
 }
 
-export function teamInviteTemplate(inviteUrl: string, tenantName: string, inviterEmail: string): { subject: string; html: string } {
+export function teamInviteTemplate(inviteUrl: string, tenantName: string, inviterEmail: string): { subject: string; html: string; text: string } {
   return {
     subject: `${inviterEmail} invited you to join ${tenantName} on Rankly`,
     html: baseLayout(`
@@ -43,5 +45,6 @@ export function teamInviteTemplate(inviteUrl: string, tenantName: string, invite
       <div style="margin: 20px 0;">${button(inviteUrl, "Accept invitation")}</div>
       <p style="font-size: 12px; color: #94a3b8;">This link expires in 7 days.</p>
     `),
+    text: `Rankly\n\n${inviterEmail} invited you to join ${tenantName} on Rankly:\n${inviteUrl}\n\nThis link expires in 7 days.`,
   };
 }
