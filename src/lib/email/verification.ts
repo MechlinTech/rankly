@@ -12,8 +12,11 @@ export async function createAndSendVerificationEmail(userId: string, email: stri
   await prisma.emailVerificationToken.create({ data: { userId, token, expiresAt } });
 
   const verifyUrl = `${origin}/api/auth/verify-email/${token}`;
-  const { subject, html } = verifyEmailTemplate(verifyUrl);
-  const result = await sendEmail({ to: email, subject, html });
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`[Verification Email] Sent to ${email}: ${verifyUrl}`);
+  }
+  const { subject, html, text } = verifyEmailTemplate(verifyUrl);
+  const result = await sendEmail({ to: email, subject, html, text });
 
   return { ...result, verifyUrl };
 }

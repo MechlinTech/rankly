@@ -14,5 +14,10 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await createAndSendVerificationEmail(user.id, user.email, getAppUrl(req));
-  return NextResponse.json({ ok: true, emailSent: result.sent, ...(result.sent ? {} : { verifyUrl: result.verifyUrl }) });
+  const isDev = process.env.NODE_ENV !== "production";
+  return NextResponse.json({
+    ok: true,
+    emailSent: result.sent,
+    ...(result.sent && !isDev ? {} : { verifyUrl: result.verifyUrl }),
+  });
 }
