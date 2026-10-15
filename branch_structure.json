@@ -1,0 +1,30 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "feat/add-mail-verification",
+    "fix/qa-bug-fixes",
+    "fix/rankly-v2-bugs",
+    "fix/super-admin-bugs",
+    "main",
+    "refactor/code-cleanup",
+    "refactor/remove-malware"
+  ],
+  "parent": {
+    "feat/add-mail-verification": "main",
+    "fix/qa-bug-fixes": "main",
+    "fix/rankly-v2-bugs": "main",
+    "fix/super-admin-bugs": "main",
+    "main": null,
+    "refactor/code-cleanup": "main",
+    "refactor/remove-malware": "main"
+  },
+  "order": [
+    "main",
+    "feat/add-mail-verification",
+    "fix/qa-bug-fixes",
+    "fix/rankly-v2-bugs",
+    "fix/super-admin-bugs",
+    "refactor/code-cleanup",
+    "refactor/remove-malware"
+  ]
+}
