@@ -3,6 +3,7 @@
 import { use, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, CardHeader, Input } from "@/components/ui";
+import { validateContactEmail, formatCrmError } from "@/lib/crm/validation";
 
 type Stage = "LEAD" | "PROSPECT" | "CLIENT" | "CHURNED";
 type TaskStatus = "OPEN" | "IN_PROGRESS" | "DONE";
@@ -28,6 +29,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   const [noteText, setNoteText] = useState("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
+  const [contactError, setContactError] = useState<string | null>(null);
+  const [addingContact, setAddingContact] = useState(false);
   const [taskTitle, setTaskTitle] = useState("");
 
   const load = useCallback(async () => {
@@ -68,14 +71,34 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   async function addContact(e: React.FormEvent) {
     e.preventDefault();
     if (!contactName.trim()) return;
-    await fetch("/api/crm/contacts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: contactName.trim(), email: contactEmail.trim() || undefined, companyId: id }),
-    });
-    setContactName("");
-    setContactEmail("");
-    await load();
+
+    const emailError = validateContactEmail(contactEmail);
+    if (emailError) {
+      setContactError(emailError);
+      return;
+    }
+
+    setAddingContact(true);
+    setContactError(null);
+    try {
+      const res = await fetch("/api/crm/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: contactName.trim(), email: contactEmail.trim() || undefined, companyId: id }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setContactError(formatCrmError(data?.error, "Couldn't add contact. Please enter a valid email."));
+        return;
+      }
+      setContactName("");
+      setContactEmail("");
+      await load();
+    } catch {
+      setContactError("Something went wrong. Please try again.");
+    } finally {
+      setAddingContact(false);
+    }
   }
 
   async function addTask(e: React.FormEvent) {
@@ -211,16 +234,34 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
           <CardHeader title="Contacts" />
           <div className="p-5">
             <form onSubmit={addContact} className="flex flex-col gap-2">
-              <Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Name" />
+              <Input
+                value={contactName}
+                onChange={(e) => {
+                  setContactName(e.target.value);
+                  if (contactError) setContactError(null);
+                }}
+                placeholder="Name"
+                aria-label="Contact name"
+              />
               <Input
                 value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
+                onChange={(e) => {
+                  setContactEmail(e.target.value);
+                  if (contactError) setContactError(null);
+                }}
                 placeholder="Email (optional)"
+                aria-label="Contact email"
+                aria-invalid={Boolean(contactError)}
               />
-              <Button type="submit" disabled={!contactName.trim()}>
-                Add contact
+              <Button type="submit" disabled={addingContact || !contactName.trim()}>
+                {addingContact ? "Adding…" : "Add contact"}
               </Button>
             </form>
+            {contactError && (
+              <p role="alert" className="mt-2 text-xs text-red-600 dark:text-red-400">
+                {contactError}
+              </p>
+            )}
             <ul className="mt-5 space-y-3">
               {company.contacts.map((c) => (
                 <li key={c.id} className="min-w-0">

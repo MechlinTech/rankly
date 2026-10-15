@@ -122,4 +122,61 @@ describe("tenant isolation and RBAC (real server, real Postgres)", () => {
     const body = await res.json();
     expect(body.error).toContain("Free plan allows up to 1 team member");
   });
+
+  it("CRM open-task count excludes DONE tasks and contact/audit validations return clean error messages", async () => {
+    const tenant = await signUp();
+
+    // 1. Create company
+    const compRes = await authedFetch("/api/crm/companies", tenant.cookie, {
+      method: "POST",
+      body: JSON.stringify({ name: "Task Testing Company" }),
+    });
+    expect(compRes.status).toBe(200);
+    const { company } = await compRes.json();
+
+    // 2. Add an open task
+    const taskRes = await authedFetch("/api/crm/tasks", tenant.cookie, {
+      method: "POST",
+      body: JSON.stringify({ title: "Follow up call", companyId: company.id }),
+    });
+    expect(taskRes.status).toBe(200);
+    const { task } = await taskRes.json();
+
+    // Verify company open-task count is 1
+    const listRes1 = await authedFetch("/api/crm/companies", tenant.cookie);
+    const listData1 = await listRes1.json();
+    const foundComp1 = listData1.companies.find((c: { id: string }) => c.id === company.id);
+    expect(foundComp1._count.tasks).toBe(1);
+
+    // 3. Mark task as DONE
+    const patchRes = await authedFetch(`/api/crm/tasks/${task.id}`, tenant.cookie, {
+      method: "PATCH",
+      body: JSON.stringify({ status: "DONE" }),
+    });
+    expect(patchRes.status).toBe(200);
+
+    // Verify open-task count becomes 0
+    const listRes2 = await authedFetch("/api/crm/companies", tenant.cookie);
+    const listData2 = await listRes2.json();
+    const foundComp2 = listData2.companies.find((c: { id: string }) => c.id === company.id);
+    expect(foundComp2._count.tasks).toBe(0);
+
+    // 4. Contact email validation rejects invalid email with 400
+    const invalidContactRes = await authedFetch("/api/crm/contacts", tenant.cookie, {
+      method: "POST",
+      body: JSON.stringify({ name: "Jane Doe", email: "invalid-email", companyId: company.id }),
+    });
+    expect(invalidContactRes.status).toBe(400);
+    const contactErrBody = await invalidContactRes.json();
+    expect(JSON.stringify(contactErrBody)).toContain("Please enter a valid email address.");
+
+    // 5. Audit domain validation rejects invalid domain with 400
+    const invalidAuditRes = await authedFetch("/api/seo/audit", tenant.cookie, {
+      method: "POST",
+      body: JSON.stringify({ domain: "not-a-domain" }),
+    });
+    expect(invalidAuditRes.status).toBe(400);
+    const auditErrBody = await invalidAuditRes.json();
+    expect(JSON.stringify(auditErrBody)).toContain("Enter a valid domain.");
+  });
 });
