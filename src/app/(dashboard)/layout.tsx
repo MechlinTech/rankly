@@ -85,8 +85,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       </div>
 
       <main className="safe-bottom flex-1 pb-10 pt-20 sm:pt-8 min-w-0 sm:h-full sm:overflow-y-auto">
-        {!ctx.user.emailVerified && <VerifyEmailBanner />}
-        <div className="mx-auto max-w-5xl px-4 sm:px-8">{children}</div>
+        <div className="mx-auto max-w-5xl px-4 sm:px-8">
+          {!ctx.user.emailVerified && <VerifyEmailBanner />}
+          {children}
+        </div>
       </main>
     </div>
   );
