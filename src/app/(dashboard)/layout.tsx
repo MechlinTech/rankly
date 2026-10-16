@@ -5,6 +5,7 @@ import { getCurrentTenantContext } from "@/lib/auth/tenant";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/keywords", label: "Keyword Research" },
@@ -47,6 +48,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="mb-8 shrink-0 px-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
           Rankly
         </div>
+
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto min-h-0">
           {NAV_ITEMS.map((item) => (
             <Link
@@ -67,29 +69,72 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         </div>
       </aside>
 
-      {/* Mobile top nav */}
-      <div className="safe-top fixed inset-x-0 top-0 z-10 flex items-center gap-4 overflow-x-auto border-b border-slate-200 bg-white px-4 py-3 dark:border-slate-800 dark:bg-slate-900 sm:hidden">
-        <span className="shrink-0 text-sm font-semibold text-slate-900 dark:text-white">Rankly</span>
-        {NAV_ITEMS.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="shrink-0 text-sm font-medium text-slate-600 dark:text-slate-400"
-          >
-            {item.label}
-          </Link>
-        ))}
-        <span className="ml-auto shrink-0">
-          <LogoutButton />
-        </span>
-      </div>
+      <div className="flex flex-1 flex-col min-w-0 sm:h-full sm:overflow-hidden">
+        {/* Desktop Top Header */}
+        <header className="hidden sm:flex h-14 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white/95 px-8 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/95 shadow-2xs z-10">
+          <div className="flex items-center gap-2.5 text-xs text-slate-500 dark:text-slate-400">
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200">{ctx.tenant.name}</span>
+            <span>•</span>
+            <span className="capitalize">{ctx.membership.role.toLowerCase()}</span>
+          </div>
 
-      <main className="safe-bottom flex-1 pb-10 pt-20 sm:pt-8 min-w-0 sm:h-full sm:overflow-y-auto">
-        <div className="mx-auto max-w-5xl px-4 sm:px-8">
-          {!ctx.user.emailVerified && <VerifyEmailBanner />}
-          {children}
+          <div className="flex items-center gap-3">
+            {ctx.user.isSuperAdmin && (
+              <Link
+                href="/admin"
+                id="back-to-admin-header-btn"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-2xs hover:bg-indigo-100 hover:border-indigo-300 dark:border-indigo-800/80 dark:bg-indigo-950/70 dark:text-indigo-200 dark:hover:bg-indigo-900/60 dark:hover:border-indigo-700 transition group cursor-pointer"
+                title="Return to Super Admin Management Console"
+              >
+                <svg className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span>Back to Admin</span>
+                <span className="rounded-md bg-indigo-200/70 px-1 py-0.2 text-[9px] font-extrabold uppercase tracking-wider text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">
+                  Root
+                </span>
+              </Link>
+            )}
+            <ThemeToggle />
+          </div>
+        </header>
+
+        {/* Mobile top nav */}
+        <div className="safe-top fixed inset-x-0 top-0 z-20 flex items-center gap-3 overflow-x-auto border-b border-slate-200 bg-white px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900 sm:hidden">
+          <span className="shrink-0 text-sm font-semibold text-slate-900 dark:text-white">Rankly</span>
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="shrink-0 text-sm font-medium text-slate-600 dark:text-slate-400"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {ctx.user.isSuperAdmin && (
+              <Link
+                href="/admin"
+                id="back-to-admin-mobile-btn"
+                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                title="Return to Super Admin Management Console"
+              >
+                <span>← Admin</span>
+              </Link>
+            )}
+            <ThemeToggle />
+            <LogoutButton />
+          </div>
         </div>
-      </main>
+
+        <main className="safe-bottom flex-1 pb-10 pt-20 sm:pt-6 min-w-0 sm:h-full sm:overflow-y-auto">
+          <div className="mx-auto max-w-5xl px-4 sm:px-8">
+            {!ctx.user.emailVerified && <VerifyEmailBanner />}
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
