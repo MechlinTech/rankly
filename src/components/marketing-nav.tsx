@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function MarketingNav() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
@@ -42,6 +43,7 @@ export function MarketingNav() {
           </Link>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           {isLoggedIn ? (
             <Link
               href={isSuperAdmin ? "/admin" : "/keywords"}
