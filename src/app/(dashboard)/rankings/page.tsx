@@ -547,8 +547,22 @@ export default function RankTrackingPage() {
 
           <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/80">
             <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span>OpenSERP API connected & verified</span>
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${
+                  result
+                    ? result.isMockData
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                    : "bg-emerald-500 animate-pulse"
+                }`}
+              ></span>
+              <span>
+                {result
+                  ? result.isMockData
+                    ? "Mock Engine active (configure OpenSERP in Admin Settings for live data)"
+                    : "Live Google SERP Engine connected"
+                  : "Google SERP & OpenSERP Search Engine"}
+              </span>
             </div>
 
             <Button
