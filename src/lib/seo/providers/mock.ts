@@ -56,12 +56,24 @@ export class MockRankTrackingProvider implements RankTrackingProvider {
     return terms.map((term) => {
       const r = seededRandom(domain + term + engine + device);
       const position = r < 0.15 ? null : Math.ceil(r * 100);
+      const competitors = ["wikipedia.org", "forbes.com", "nytimes.com", "hubspot.com", "techcrunch.com"];
+      const compDomain = competitors[Math.floor(r * competitors.length)];
+
       return {
         term,
         engine,
         device,
         position,
-        url: position ? `https://${domain}/` : null,
+        url: position ? `https://${domain}/${term.toLowerCase().replace(/\s+/g, "-")}` : null,
+        title: position ? `${term.charAt(0).toUpperCase() + term.slice(1)} | Comprehensive Guide - ${domain}` : null,
+        snippet: position ? `Explore the best insights on ${term}. Find key strategies, in-depth analysis, and expert reviews from ${domain}.` : null,
+        resultType: position === 1 ? "featured_snippet" : "organic",
+        page: position ? Math.ceil(position / 10) : null,
+        topCompetitor: {
+          domain: compDomain,
+          url: `https://${compDomain}/${term.toLowerCase().replace(/\s+/g, "-")}`,
+          title: `${term.charAt(0).toUpperCase() + term.slice(1)} - Complete Overview & Analysis`,
+        },
         capturedAt: new Date(),
       };
     });

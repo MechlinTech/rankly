@@ -1,5 +1,6 @@
 import type { KeywordDataProvider, RankTrackingProvider, AiVisibilityProvider } from "./types";
 import { MockKeywordDataProvider, MockRankTrackingProvider, MockAiVisibilityProvider } from "./mock";
+import { OpenSerpRankProvider } from "./openserp";
 
 // Provider factory — swaps mock implementations for real ones once credentials exist.
 // No fake integrations: if a real provider's credentials are absent, we explicitly
@@ -16,12 +17,11 @@ export function getKeywordDataProvider(): KeywordDataProvider {
 }
 
 export function getRankTrackingProvider(): RankTrackingProvider {
-  if (process.env.SERP_API_KEY) {
-    throw new Error(
-      "SERP_API_KEY detected but the real adapter is not implemented yet. " +
-        "Implement a SerpApiRankProvider in providers/serpapi.ts before enabling this path."
-    );
+  const apiKey = process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY;
+  if (apiKey?.trim()) {
+    return new OpenSerpRankProvider(apiKey.trim());
   }
+
   return new MockRankTrackingProvider();
 }
 
@@ -31,3 +31,4 @@ export function getAiVisibilityProvider(): AiVisibilityProvider {
 }
 
 export * from "./types";
+export * from "./openserp";

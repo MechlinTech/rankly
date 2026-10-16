@@ -20,6 +20,23 @@ export interface SerpResult {
   device: "desktop" | "mobile";
   position: number | null;
   url: string | null;
+  title?: string | null;
+  snippet?: string | null;
+  resultType?: string | null;
+  page?: number | null;
+  topCompetitor?: {
+    domain: string | null;
+    url: string | null;
+    title: string | null;
+  } | null;
+  metrics?: {
+    searchVolume: number | null;
+    difficulty: number | null;
+    cpc: number | null;
+    intent: "informational" | "navigational" | "transactional" | "commercial" | null;
+  } | null;
+  previousPosition?: number | null;
+  positionChange?: number | null;
   capturedAt: Date;
 }
 
