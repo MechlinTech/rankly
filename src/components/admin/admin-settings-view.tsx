@@ -75,21 +75,16 @@ function resolveCategoryFromUrlOrStorage(): string {
 export function AdminSettingsView() {
   const [integrations, setIntegrations] = useState<IntegrationConfig[] | null>(null);
   const [aiStats, setAiStats] = useState<{ total: number; active: number }>({ total: 0, active: 0 });
-  const [categoryFilter, setCategoryFilter] = useState<string>("Search & SEO");
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => resolveCategoryFromUrlOrStorage());
   const [loading, setLoading] = useState(true);
   const [cardStates, setCardStates] = useState<Record<string, IntegrationState>>({});
   const [testingAll, setTestingAll] = useState(false);
   const [globalBanner, setGlobalBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Restore and synchronize tab from URL / localStorage on mount and history navigation
+  // Synchronize category in URL / localStorage and listen for history navigation
   useEffect(() => {
-    const initialCategory = resolveCategoryFromUrlOrStorage();
-    if (initialCategory !== "Search & SEO") {
-      setCategoryFilter(initialCategory);
-    }
-
     try {
-      const slug = CATEGORY_TO_SLUG[initialCategory] || "search";
+      const slug = CATEGORY_TO_SLUG[categoryFilter] || "search";
       const url = new URL(window.location.href);
       // Clean up any stale tab param that was incorrectly set to a category slug
       if (url.searchParams.get("tab") === slug) {
@@ -110,7 +105,7 @@ export function AdminSettingsView() {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
-  }, []);
+  }, [categoryFilter]);
 
   function handleTabChange(newCategory: string) {
     setCategoryFilter(newCategory);
