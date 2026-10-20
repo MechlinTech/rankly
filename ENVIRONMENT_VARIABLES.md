@@ -5,9 +5,10 @@ Copy `.env.example` to `.env` for local development. Never commit `.env`. In sta
 | Variable | Required | Default behavior if unset | Notes |
 |---|---|---|---|
 | `DATABASE_URL` | **Yes** | App fails to start (`src/lib/db.ts` throws) | Postgres connection string, used with `@prisma/adapter-pg`. |
+| `APP_ENCRYPTION_KEY` | **Yes in staging/production** | Secret-key features fail closed | Stable 32-byte hex/base64 key used to encrypt integration and AI provider credentials. Generate with `openssl rand -hex 32`; keep the same value across deploys and backups. Never use the development example value in production. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google sign-in returns 501 | Create in Google Cloud Console → OAuth client. Callback URL: `https://<your-domain>/api/auth/oauth/google/callback`. |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | No | Microsoft sign-in returns 501 | Create in Azure Portal → App registrations. Callback URL: `https://<your-domain>/api/auth/oauth/microsoft/callback`. |
-| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | No | Keyword provider factory **throws** if set without the adapter implemented; leave unset to use mock data | See `src/lib/seo/providers/index.ts`. |
+| `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | No | Enables live keyword suggestions, search volume, difficulty, and CPC in Keyword Research; requests may incur DataForSEO charges | Add both credentials in Admin → Settings. The DataForSEO Labs live API is used. |
 | `OPENSERP_API_KEY` / `SERP_API_KEY` | No | OpenSERP live ranking data and related-search/People Also Ask ideas in Keyword Research; it does not provide volume, difficulty, or CPC metrics | |
 | `ANTHROPIC_API_KEY` | No | Not currently used by any built feature | Reserved for a future AI content-assistant feature. |
 | `STRIPE_SECRET_KEY` | No | All `/api/billing/*` routes return 501 | Stripe test or live secret key. |

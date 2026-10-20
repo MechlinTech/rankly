@@ -1,4 +1,5 @@
 import type { OAuthProviderAdapter, OAuthUserInfo } from "./types";
+import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -13,13 +14,19 @@ const USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 export const googleOAuthAdapter: OAuthProviderAdapter = {
   name: "GOOGLE",
 
-  isConfigured() {
-    return !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  async isConfigured() {
+    const [clientId, clientSecret] = await Promise.all([
+      getIntegrationCredential("GOOGLE_CLIENT_ID"),
+      getIntegrationCredential("GOOGLE_CLIENT_SECRET"),
+    ]);
+    return !!(clientId && clientSecret);
   },
 
-  getAuthorizationUrl(state: string, redirectUri: string) {
+  async getAuthorizationUrl(state: string, redirectUri: string) {
+    const clientId = await getIntegrationCredential("GOOGLE_CLIENT_ID");
+    if (!clientId) throw new Error("GOOGLE_CLIENT_ID is not configured.");
     const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
       scope: "openid email profile",
@@ -31,13 +38,18 @@ export const googleOAuthAdapter: OAuthProviderAdapter = {
   },
 
   async exchangeCodeForUser(code: string, redirectUri: string): Promise<OAuthUserInfo> {
+    const [clientId, clientSecret] = await Promise.all([
+      getIntegrationCredential("GOOGLE_CLIENT_ID"),
+      getIntegrationCredential("GOOGLE_CLIENT_SECRET"),
+    ]);
+    if (!clientId || !clientSecret) throw new Error("Google OAuth credentials are not configured.");
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        client_id: clientId,
+        client_secret: clientSecret,
         redirect_uri: redirectUri,
         grant_type: "authorization_code",
       }),
