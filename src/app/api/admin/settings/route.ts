@@ -177,8 +177,35 @@ export async function POST(req: NextRequest) {
   }
   try {
     await saveIntegrationCredentials(durableUpdates, user.id);
-  } catch {
-    return NextResponse.json({ error: "Could not persist the settings in the database. Check database connectivity and try again." }, { status: 500 });
+  } catch (error) {
+    const errorCode = typeof error === "object" && error !== null && "code" in error
+      ? String(error.code)
+      : undefined;
+    const errorMessage = error instanceof Error ? error.message : "Unknown persistence error";
+    console.error("Failed to persist integration credentials.", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      code: errorCode,
+      message: errorMessage,
+    });
+
+    if (error instanceof EncryptionConfigError) {
+      return NextResponse.json({
+        error: "Credential encryption is not configured on this app instance. Deploy with a valid APP_ENCRYPTION_KEY, then retry.",
+      }, { status: 500 });
+    }
+    if (errorCode === "P2021" || errorCode === "P2022") {
+      return NextResponse.json({
+        error: "The credentials table is missing or outdated. Run the latest Prisma migration, then retry.",
+      }, { status: 500 });
+    }
+    if (errorCode?.startsWith("P10")) {
+      return NextResponse.json({
+        error: "The database rejected the credential write. Check database connectivity and write permissions.",
+      }, { status: 500 });
+    }
+    return NextResponse.json({
+      error: "Could not save credentials. Check the app server logs for the persistence error and retry.",
+    }, { status: 500 });
   }
 
   // Record audit log
