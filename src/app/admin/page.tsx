@@ -42,7 +42,15 @@ function AdminMainContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const tabParam = searchParams.get("tab");
-  const activeTab: "tenants" | "settings" = tabParam === "settings" ? "settings" : "tenants";
+  const isSettingsParam =
+    tabParam === "settings" ||
+    tabParam === "search" ||
+    tabParam === "ai" ||
+    tabParam === "email" ||
+    tabParam === "billing" ||
+    tabParam === "auth";
+
+  const activeTab: "tenants" | "settings" = isSettingsParam ? "settings" : "tenants";
 
   const [data, setData] = useState<AdminData | null>(null);
   const [page, setPage] = useState(1);

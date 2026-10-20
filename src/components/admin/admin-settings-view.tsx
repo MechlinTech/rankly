@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, Input, Spinner } from "@/components/ui";
+import { AdminAiProvidersView } from "./admin-ai-providers-view";
 import type { IntegrationConfig } from "@/app/api/admin/settings/route";
 import type { TestResult } from "@/lib/admin/settings-tester";
 
@@ -14,13 +15,116 @@ interface IntegrationState {
   saveMessage: string | null;
 }
 
+const SETTINGS_CATEGORIES = [
+  { key: "Search & SEO", label: "Search & SEO", slug: "search" },
+  { key: "Email & Notifications", label: "Email", slug: "email" },
+  { key: "Artificial Intelligence", label: "Artificial Intelligence", slug: "ai" },
+  { key: "Payments & Billing", label: "Billing", slug: "billing" },
+  { key: "Authentication", label: "Auth (SSO)", slug: "auth" },
+] as const;
+
+const TAB_SLUG_MAP: Record<string, string> = {
+  search: "Search & SEO",
+  email: "Email & Notifications",
+  ai: "Artificial Intelligence",
+  billing: "Payments & Billing",
+  auth: "Authentication",
+};
+
+const CATEGORY_TO_SLUG: Record<string, string> = {
+  "Search & SEO": "search",
+  "Email & Notifications": "email",
+  "Artificial Intelligence": "ai",
+  "Payments & Billing": "billing",
+  "Authentication": "auth",
+};
+
+function resolveCategoryFromUrlOrStorage(): string {
+  if (typeof window === "undefined") return "Search & SEO";
+  try {
+    const params = new URLSearchParams(window.location.search);
+    // 1. Check 'category' or 'cat' query params first
+    const catParam = params.get("category") || params.get("cat");
+    if (catParam) {
+      const lower = catParam.toLowerCase().trim();
+      if (TAB_SLUG_MAP[lower]) return TAB_SLUG_MAP[lower];
+      const match = SETTINGS_CATEGORIES.find(
+        (c) => c.key.toLowerCase() === lower || c.label.toLowerCase() === lower
+      );
+      if (match) return match.key;
+    }
+
+    // 2. Check 'tab' query param (only if it matches one of our category slugs, NOT 'settings' or 'tenants')
+    const tabParam = params.get("tab");
+    if (tabParam && tabParam !== "settings" && tabParam !== "tenants") {
+      const lower = tabParam.toLowerCase().trim();
+      if (TAB_SLUG_MAP[lower]) return TAB_SLUG_MAP[lower];
+    }
+
+    // 3. Fallback to localStorage
+    const saved = localStorage.getItem("admin_settings_category") || localStorage.getItem("admin_settings_tab");
+    if (saved && SETTINGS_CATEGORIES.some((c) => c.key === saved)) {
+      return saved;
+    }
+  } catch {
+    // ignore
+  }
+  return "Search & SEO";
+}
+
 export function AdminSettingsView() {
   const [integrations, setIntegrations] = useState<IntegrationConfig[] | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("ALL");
+  const [aiStats, setAiStats] = useState<{ total: number; active: number }>({ total: 0, active: 0 });
+  const [categoryFilter, setCategoryFilter] = useState<string>(() => resolveCategoryFromUrlOrStorage());
   const [loading, setLoading] = useState(true);
   const [cardStates, setCardStates] = useState<Record<string, IntegrationState>>({});
   const [testingAll, setTestingAll] = useState(false);
   const [globalBanner, setGlobalBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Synchronize category in URL / localStorage and listen for history navigation
+  useEffect(() => {
+    try {
+      const slug = CATEGORY_TO_SLUG[categoryFilter] || "search";
+      const url = new URL(window.location.href);
+      // Clean up any stale tab param that was incorrectly set to a category slug
+      if (url.searchParams.get("tab") === slug) {
+        url.searchParams.set("tab", "settings");
+      }
+      if (url.searchParams.get("category") !== slug) {
+        url.searchParams.set("category", slug);
+        window.history.replaceState(null, "", url.toString());
+      }
+    } catch {
+      // ignore
+    }
+
+    function handlePopState() {
+      const current = resolveCategoryFromUrlOrStorage();
+      setCategoryFilter(current);
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [categoryFilter]);
+
+  function handleTabChange(newCategory: string) {
+    setCategoryFilter(newCategory);
+    if (typeof window !== "undefined") {
+      try {
+        const slug = CATEGORY_TO_SLUG[newCategory] || "search";
+        const url = new URL(window.location.href);
+        url.searchParams.set("category", slug);
+        // Ensure on /admin that tab=settings is retained
+        if (window.location.pathname === "/admin") {
+          url.searchParams.set("tab", "settings");
+        }
+        window.history.replaceState(null, "", url.toString());
+        localStorage.setItem("admin_settings_category", newCategory);
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   const [reloadTrigger, setReloadTrigger] = useState(0);
 
@@ -32,6 +136,9 @@ export function AdminSettingsView() {
         if (res.ok && active) {
           const data = await res.json();
           setIntegrations(data.integrations);
+          if (data.aiStats) {
+            setAiStats(data.aiStats);
+          }
 
           // Initialize state for each card
           const initialStates: Record<string, IntegrationState> = {};
@@ -200,9 +307,9 @@ export function AdminSettingsView() {
     setTestingAll(true);
     setGlobalBanner(null);
 
-    const activeList = integrations.filter((i) => i.isConfigured);
+    const activeList = filteredIntegrations.filter((i) => i.isConfigured);
     if (activeList.length === 0) {
-      setGlobalBanner({ type: "error", text: "No active API keys are configured yet to test." });
+      setGlobalBanner({ type: "error", text: `No active credentials configured in ${categoryFilter} to test.` });
       setTestingAll(false);
       return;
     }
@@ -215,26 +322,29 @@ export function AdminSettingsView() {
 
     setGlobalBanner({
       type: successCount === activeList.length ? "success" : "error",
-      text: `Health check complete: ${successCount} of ${activeList.length} services verified operational.`,
+      text: `Health check complete: ${successCount} of ${activeList.length} services in ${categoryFilter} verified operational.`,
     });
     setTestingAll(false);
   }
 
-  const categories = [
-    { key: "ALL", label: "All Integrations" },
-    { key: "Search & SEO", label: "Search & SEO" },
-    { key: "Email & Notifications", label: "Email" },
-    { key: "Artificial Intelligence", label: "AI" },
-    { key: "Payments & Billing", label: "Billing" },
-    { key: "Authentication", label: "Auth (SSO)" },
-  ];
+  const isAiCategory = categoryFilter === "Artificial Intelligence";
+
+  const categories = SETTINGS_CATEGORIES;
 
   const filteredIntegrations = (integrations ?? []).filter((item) => {
-    if (categoryFilter === "ALL") return true;
     return item.category === categoryFilter;
   });
 
-  const configuredCount = integrations?.filter((i) => i.isConfigured).length ?? 0;
+  const categoryConfiguredCount = isAiCategory
+    ? aiStats.active
+    : filteredIntegrations.filter((i) => i.isConfigured).length;
+  const categoryTotalCount = isAiCategory
+    ? aiStats.total
+    : filteredIntegrations.length;
+  const totalEnvConfigured = integrations?.filter((i) => i.isConfigured).length ?? 0;
+  const totalEnvCount = integrations?.length ?? 0;
+  const totalConfiguredCount = totalEnvConfigured + aiStats.active;
+  const totalIntegrationsCount = totalEnvCount + aiStats.total;
 
   if (loading) {
     return (
@@ -254,38 +364,47 @@ export function AdminSettingsView() {
             <h2 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-2xl">
               API Keys & Integrations
             </h2>
-            <Badge tone={configuredCount > 0 ? "success" : "neutral"}>
-              {configuredCount} of {integrations?.length ?? 0} Connected
+            <Badge tone={categoryConfiguredCount > 0 ? "success" : "neutral"}>
+              {categoryConfiguredCount} of {categoryTotalCount} {isAiCategory ? "Active" : "Connected"}
             </Badge>
+            {totalIntegrationsCount > 0 && (
+              <span className="text-xs text-slate-400 dark:text-slate-500">
+                ({totalConfiguredCount} of {totalIntegrationsCount} total across all categories)
+              </span>
+            )}
           </div>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Configure external service credentials and run instant live diagnostic tests.
+            {isAiCategory
+              ? "Configure multi-provider AI engines (Gemini, OpenAI, Anthropic, xAI, Custom) with automated fallback."
+              : "Configure external service credentials and run instant live diagnostic tests."}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleTestAll}
-            disabled={testingAll || configuredCount === 0}
-            className="flex items-center gap-1.5 cursor-pointer"
-          >
-            {testingAll ? (
-              <>
-                <Spinner />
-                <span>Running Checks…</span>
-              </>
-            ) : (
-              <>
-                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span>Test All Configured</span>
-              </>
-            )}
-          </Button>
-        </div>
+        {!isAiCategory && (
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleTestAll}
+              disabled={testingAll || categoryConfiguredCount === 0}
+              className="flex items-center gap-1.5 cursor-pointer"
+            >
+              {testingAll ? (
+                <>
+                  <Spinner />
+                  <span>Running Checks…</span>
+                </>
+              ) : (
+                <>
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <span>Test Configured ({categoryConfiguredCount})</span>
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
 
       {globalBanner && (
@@ -303,24 +422,47 @@ export function AdminSettingsView() {
 
       {/* Category Filter Tabs */}
       <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-200 pb-3 dark:border-slate-800">
-        {categories.map((cat) => (
-          <button
-            key={cat.key}
-            type="button"
-            onClick={() => setCategoryFilter(cat.key)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
-              categoryFilter === cat.key
-                ? "bg-slate-900 text-white shadow-2xs dark:bg-white dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-slate-800"
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
+        {categories.map((cat) => {
+          const isAiTab = cat.key === "Artificial Intelligence";
+          const catConfigured = isAiTab
+            ? aiStats.active
+            : (integrations ?? []).filter((i) => i.category === cat.key && i.isConfigured).length;
+          const catTotal = isAiTab
+            ? aiStats.total
+            : (integrations ?? []).filter((i) => i.category === cat.key).length;
+          return (
+            <button
+              key={cat.key}
+              type="button"
+              onClick={() => handleTabChange(cat.key)}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition cursor-pointer ${
+                categoryFilter === cat.key
+                  ? "bg-slate-900 text-white shadow-2xs dark:bg-white dark:text-slate-900"
+                  : "text-slate-600 hover:bg-slate-200/60 dark:text-slate-400 dark:hover:bg-slate-800"
+              }`}
+            >
+              <span>{cat.label}</span>
+              <span
+                className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                  categoryFilter === cat.key
+                    ? "bg-slate-800 text-slate-200 dark:bg-slate-100 dark:text-slate-900 font-semibold"
+                    : catConfigured > 0
+                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-400 font-medium"
+                    : "bg-slate-200/70 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                }`}
+              >
+                {catConfigured}/{catTotal}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Integrations Cards Grid */}
-      <div className="grid gap-5 md:grid-cols-2">
+      {/* View Switcher: Multi-Provider AI View vs Standard Integrations Cards */}
+      {isAiCategory ? (
+        <AdminAiProvidersView onProviderChange={reloadSettings} />
+      ) : (
+        <div className="grid gap-5 md:grid-cols-2">
         {filteredIntegrations.map((item) => {
           const state = cardStates[item.id] ?? {
             keyInput: "",
@@ -480,6 +622,7 @@ export function AdminSettingsView() {
           );
         })}
       </div>
+      )}
     </div>
   );
 }

@@ -27,7 +27,6 @@ export async function GET() {
   const openSerpVal = process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY;
   const resendVal = process.env.RESEND_API_KEY;
   const resendFromVal = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM;
-  const anthropicVal = process.env.ANTHROPIC_API_KEY;
   const stripeVal = process.env.STRIPE_SECRET_KEY;
   const stripeWebhookVal = process.env.STRIPE_WEBHOOK_SECRET;
   const dataforseoLogin = process.env.DATAFORSEO_LOGIN;
@@ -36,6 +35,19 @@ export async function GET() {
   const googleSecret = process.env.GOOGLE_CLIENT_SECRET;
   const msClientId = process.env.MICROSOFT_CLIENT_ID;
   const msSecret = process.env.MICROSOFT_CLIENT_SECRET;
+
+  let aiTotal = 0;
+  let aiActive = 0;
+  try {
+    const [t, a] = await Promise.all([
+      prisma.aiProviderConfig.count(),
+      prisma.aiProviderConfig.count({ where: { isActive: true } }),
+    ]);
+    aiTotal = t;
+    aiActive = a;
+  } catch {
+    // If DB is offline or mock, do not crash settings page
+  }
 
   const integrations: IntegrationConfig[] = [
     {
@@ -61,16 +73,6 @@ export async function GET() {
       maskedValue: maskApiKey(resendVal),
       maskedExtraValue: resendFromVal ?? null,
       placeholder: "re_...",
-    },
-    {
-      id: "anthropic",
-      name: "Anthropic Claude AI Engine",
-      category: "Artificial Intelligence",
-      description: "Powers AI visibility tracking, automated SEO recommendations, and keyword clustering.",
-      envKey: "ANTHROPIC_API_KEY",
-      isConfigured: Boolean(anthropicVal?.trim()),
-      maskedValue: maskApiKey(anthropicVal),
-      placeholder: "sk-ant-api03-...",
     },
     {
       id: "stripe",
@@ -126,7 +128,13 @@ export async function GET() {
     },
   ];
 
-  return NextResponse.json({ integrations });
+  return NextResponse.json({
+    integrations,
+    aiStats: {
+      total: aiTotal,
+      active: aiActive,
+    },
+  });
 }
 
 const updateSchema = z.object({

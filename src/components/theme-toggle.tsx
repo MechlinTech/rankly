@@ -109,7 +109,7 @@ export function ThemeToggle({ className = "", showLabels = false }: ThemeToggleP
         onClick={() => setThemeMode("dark")}
         className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium transition-all duration-150 cursor-pointer ${
           isDark
-            ? "bg-slate-900 text-indigo-300 shadow-2xs ring-1 ring-white/10 dark:bg-indigo-950/80 dark:text-indigo-300 dark:ring-indigo-700/50"
+            ? "bg-slate-900 text-slate-100 shadow-2xs ring-1 ring-white/10 dark:bg-slate-700 dark:text-slate-100 dark:ring-slate-600"
             : "text-slate-400 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
         }`}
       >

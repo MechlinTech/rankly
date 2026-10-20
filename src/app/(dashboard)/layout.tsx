@@ -84,14 +84,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <Link
                 href="/admin"
                 id="back-to-admin-header-btn"
-                className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-200/90 bg-indigo-50/80 px-3 py-1.5 text-xs font-bold text-indigo-700 shadow-2xs hover:bg-indigo-100 hover:border-indigo-300 dark:border-indigo-800/80 dark:bg-indigo-950/70 dark:text-indigo-200 dark:hover:bg-indigo-900/60 dark:hover:border-indigo-700 transition group cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/80 px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-100 hover:border-slate-300 dark:border-slate-800/80 dark:bg-slate-800/70 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:border-slate-700 transition group cursor-pointer"
                 title="Return to Super Admin Management Console"
               >
-                <svg className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 <span>Back to Admin</span>
-                <span className="rounded-md bg-indigo-200/70 px-1 py-0.2 text-[9px] font-extrabold uppercase tracking-wider text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300">
+                <span className="rounded-md bg-slate-200/70 px-1 py-0.2 text-[9px] font-extrabold uppercase tracking-wider text-slate-700 dark:bg-slate-700 dark:text-slate-300">
                   Root
                 </span>
               </Link>
@@ -117,7 +117,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
               <Link
                 href="/admin"
                 id="back-to-admin-mobile-btn"
-                className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-bold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 dark:border-slate-800 dark:bg-slate-800 dark:text-slate-300"
                 title="Return to Super Admin Management Console"
               >
                 <span>← Admin</span>
