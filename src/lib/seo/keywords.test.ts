@@ -51,6 +51,7 @@ describe("researchKeyword", () => {
     expect(result.seedTerm).toBe("seo");
     expect(result.isMockData).toBe(true);
     expect(result.dataProvider).toContain("fallback: mock");
+    expect(result.providerError).toBe("OpenSERP keyword lookup failed (HTTP 502).");
     expect(result.seed.term).toBe("seo");
     expect(result.related.length).toBeGreaterThan(0);
   });
