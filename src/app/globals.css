@@ -32,6 +32,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Use the app's own eye toggle instead of Edge's native password reveal button,
+   which can overlap or replace the custom icon while the field has focus. */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
 /* Safe-area support for notched/rounded-corner devices (iPhone, etc.) */
 .safe-top {
   padding-top: max(0.75rem, env(safe-area-inset-top));

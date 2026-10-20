@@ -10,6 +10,7 @@ import {
   validateTaskTitle,
   validateActivityBody,
   formatCrmError,
+  contactFieldErrorsFromApi,
   cleanDomain,
   COMPANY_NAME_REQUIRED_MESSAGE,
   COMPANY_NAME_MAX_MESSAGE,
@@ -110,15 +111,33 @@ describe("CRM Validation", () => {
       expect(validateContactPhone("")).toBeNull();
     });
 
-    it("accepts valid phone numbers", () => {
+    it("accepts valid phone numbers in common written formats", () => {
       expect(validateContactPhone("+1 (555) 019-2834")).toBeNull();
       expect(validateContactPhone("555-1234")).toBeNull();
       expect(validateContactPhone("+44 20 7946 0912")).toBeNull();
+      expect(validateContactPhone("123.456.7890")).toBeNull();
+      expect(validateContactPhone("(555) 019-2834")).toBeNull();
+      expect(validateContactPhone("123456789012345")).toBeNull(); // E.164 maximum
     });
 
-    it("rejects invalid phone numbers", () => {
+    it("rejects numbers outside the 7-15 digit range", () => {
+      expect(validateContactPhone("123456")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("1234567890123456")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+    });
+
+    it("rejects invalid characters and malformed formatting", () => {
       expect(validateContactPhone("abc")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
-      expect(validateContactPhone("12")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("123/456/7890")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("123456\n7")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("123456\t7")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("+1 (555) 019-2834 ext 12")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("+() 1234567")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("(555 019-2834")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("555) 019-2834")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("1234567--")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("--1234567")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("12..34567")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
+      expect(validateContactPhone("1234567+")).toBe(CONTACT_PHONE_INVALID_MESSAGE);
     });
   });
 
@@ -159,6 +178,45 @@ describe("CRM Validation", () => {
 
     it("accepts valid activity note", () => {
       expect(validateActivityBody("Discussed Q4 roadmap.")).toBeNull();
+    });
+  });
+
+  describe("contactFieldErrorsFromApi", () => {
+    it("maps server field errors to their matching contact fields", () => {
+      expect(
+        contactFieldErrorsFromApi({
+          formErrors: [],
+          fieldErrors: {
+            name: ["Name is required."],
+            email: ["Invalid email."],
+            phone: ["Invalid phone."],
+            title: ["Title is too long."],
+          },
+        })
+      ).toEqual({
+        name: "Name is required.",
+        email: "Invalid email.",
+        phone: "Invalid phone.",
+        title: "Title is too long.",
+      });
+    });
+
+    it("keeps form-level errors in general", () => {
+      expect(
+        contactFieldErrorsFromApi({ formErrors: ["Company not found."], fieldErrors: {} }, "Fallback")
+      ).toEqual({ general: "Company not found." });
+      expect(contactFieldErrorsFromApi("Network error", "Fallback")).toEqual({
+        general: "Network error",
+      });
+    });
+
+    it("falls back to general for unmapped field errors", () => {
+      expect(
+        contactFieldErrorsFromApi(
+          { formErrors: [], fieldErrors: { companyId: ["Company not found."] } },
+          "Fallback"
+        )
+      ).toEqual({ general: "Company not found." });
     });
   });
 

@@ -32,7 +32,7 @@ export async function signUpViaUI(page: Page, overrides: Partial<SignedUpUser> =
   await page.getByLabel("Your name").fill("E2E Test User");
   await page.getByLabel("Company name").fill(user.companyName);
   await page.getByLabel("Email").fill(user.email);
-  await page.getByLabel("Password").fill(user.password);
+  await page.getByLabel("Password", { exact: true }).fill(user.password);
   await page.getByRole("button", { name: "Create account" }).click();
   await page.waitForURL("**/keywords", { waitUntil: "commit" });
 

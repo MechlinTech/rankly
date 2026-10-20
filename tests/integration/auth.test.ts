@@ -68,6 +68,50 @@ describe("auth (real server, real Postgres)", () => {
     expect(bad.status).toBe(401);
   });
 
+  it("rejects whitespace-only passwords but preserves embedded spaces", async () => {
+    const whitespaceOnly = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Whitespace User",
+        email: randomEmail("whitespace"),
+        password: "          ",
+        companyName: "Whitespace Co",
+      }),
+    });
+    expect(whitespaceOnly.status).toBe(400);
+    const whitespaceData = await whitespaceOnly.json();
+    expect(JSON.stringify(whitespaceData.error)).toContain("blank spaces");
+
+    const email = randomEmail("embedded-space");
+    const signup = await fetch(`${BASE_URL}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Embedded Space User",
+        email,
+        password: "  pass word1  ",
+        companyName: "Embedded Space Co",
+      }),
+    });
+    expect(signup.status).toBe(200);
+
+    // Surrounding spaces are ignored; the embedded space is part of the password.
+    const login = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "pass word1" }),
+    });
+    expect(login.status).toBe(200);
+
+    const wrongLogin = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password: "password1" }),
+    });
+    expect(wrongLogin.status).toBe(401);
+  });
+
   it("logout revokes the session so it can no longer be used", async () => {
     const { cookie } = await signUp();
 

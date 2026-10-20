@@ -4,6 +4,7 @@ import { use, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input, Spinner } from "@/components/ui";
+import { PasswordField } from "@/components/password-field";
 
 interface InviteInfo {
   email: string;
@@ -110,15 +111,17 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
                   <label htmlFor={passwordId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Set a password
                   </label>
-                  <Input
+                  <PasswordField
                     id={passwordId}
-                    type="password"
                     required
                     minLength={10}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={setPassword}
                     autoComplete="new-password"
                   />
+                  <p className="mt-1 text-xs text-slate-500">
+                    At least 10 characters. Blank spaces alone are not accepted.
+                  </p>
                 </div>
                 {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
                 <Button type="submit" disabled={submitting}>

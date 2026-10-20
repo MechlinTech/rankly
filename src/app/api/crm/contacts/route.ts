@@ -5,7 +5,13 @@ import { requireRole } from "@/lib/auth/require-role";
 import { suspensionCheck } from "@/lib/auth/suspension";
 import { prisma } from "@/lib/db";
 
-import { CONTACT_EMAIL_INVALID_MESSAGE } from "@/lib/crm/validation";
+import {
+  CONTACT_EMAIL_INVALID_MESSAGE,
+  CONTACT_PHONE_INVALID_MESSAGE,
+  CONTACT_PHONE_MAX_LENGTH,
+  CONTACT_PHONE_MAX_MESSAGE,
+  validateContactPhone,
+} from "@/lib/crm/validation";
 
 export async function GET(req: NextRequest) {
   const ctx = await getCurrentTenantContext();
@@ -24,7 +30,12 @@ export async function GET(req: NextRequest) {
 const createSchema = z.object({
   name: z.string().trim().min(1, "Contact name is required.").max(200),
   email: z.string().trim().email(CONTACT_EMAIL_INVALID_MESSAGE).max(255).optional().or(z.literal("")),
-  phone: z.string().trim().max(50).optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(CONTACT_PHONE_MAX_LENGTH, CONTACT_PHONE_MAX_MESSAGE)
+    .refine((value) => validateContactPhone(value) === null, CONTACT_PHONE_INVALID_MESSAGE)
+    .optional(),
   title: z.string().trim().max(120).optional(),
   companyId: z.string().trim().min(1).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
