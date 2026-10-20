@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getValidResetToken, consumePasswordReset } from "@/lib/email/password-reset";
-import { passwordStrengthError } from "@/lib/auth/password";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ toke
 }
 
 const requestSchema = z.object({
-  password: z.string().min(1).max(200),
+  password: z.string().min(1),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

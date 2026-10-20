@@ -40,6 +40,27 @@ test.describe("auth flow (real browser)", () => {
     await expect(toggle.locator("svg circle")).toHaveCount(0);
   });
 
+  test("signup rejects passwords containing whitespace", async ({ page }) => {
+    await page.goto("/signup");
+    await page.getByLabel("Your name").fill("Whitespace Test User");
+    await page.getByLabel("Company name").fill("Whitespace Test Co");
+    await page.getByLabel("Email").fill(`whitespace-${Date.now()}@e2e-test.local`);
+
+    const password = page.getByLabel("Password", { exact: true });
+    const submit = page.getByRole("button", { name: "Create account" });
+
+    for (const invalidPassword of [
+      " e2e-test-password-123",
+      "e2e-test-password-123 ",
+      "e2e test password 123",
+    ]) {
+      await password.fill(invalidPassword);
+      await submit.click();
+      await expect(page.getByRole("alert")).toHaveText("Password must not contain spaces.");
+      expect(page.url()).toContain("/signup");
+    }
+  });
+
   test("signup uses the same persistent password visibility toggle", async ({ page }) => {
     await page.goto("/signup");
 

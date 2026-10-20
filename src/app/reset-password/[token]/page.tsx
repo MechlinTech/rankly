@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Spinner } from "@/components/ui";
 import { PasswordField } from "@/components/password-field";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
 
 export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -26,6 +27,12 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const passwordError = passwordStrengthError(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -89,7 +96,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
                 autoComplete="new-password"
               />
               <p className="mt-1 text-xs text-slate-500">
-                At least 10 characters. Blank spaces alone are not accepted.
+                At least 10 characters. Spaces and tabs are not allowed.
               </p>
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

@@ -1,4 +1,4 @@
-import { passwordStrengthError } from "./password";
+import { passwordStrengthError } from "./password-policy";
 
 export const SIGNUP_NAME_REQUIRED = "Name is required. Please enter your name.";
 export const SIGNUP_COMPANY_REQUIRED = "Company name is required. Please enter your company name.";
@@ -28,7 +28,6 @@ export function signupValidationMessage(body: unknown): string | null {
 
   const passwordError = passwordStrengthError(password);
   if (passwordError) return passwordError;
-  if (password.trim().length > 200) return "Password must be 200 characters or fewer.";
 
   return null;
 }

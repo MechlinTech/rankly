@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input, Spinner } from "@/components/ui";
 import { PasswordField } from "@/components/password-field";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
 
 interface InviteInfo {
   email: string;
@@ -43,6 +44,14 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!info?.requiresLogin) {
+      const passwordError = passwordStrengthError(password);
+      if (passwordError) {
+        setSubmitError(passwordError);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -120,7 +129,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
                     autoComplete="new-password"
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    At least 10 characters. Blank spaces alone are not accepted.
+                    At least 10 characters. Spaces and tabs are not allowed.
                   </p>
                 </div>
                 {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}

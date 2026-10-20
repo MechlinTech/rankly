@@ -90,7 +90,7 @@ export default function SignupPage() {
               onChange={setPassword}
               autoComplete="new-password"
             />
-            <p className="mt-1 text-xs text-slate-500">At least 10 characters. Blank spaces alone are not accepted.</p>
+            <p className="mt-1 text-xs text-slate-500">At least 10 characters. Spaces and tabs are not allowed.</p>
           </div>
           {error && (
             <p role="alert" className="text-sm text-red-600 dark:text-red-400">
