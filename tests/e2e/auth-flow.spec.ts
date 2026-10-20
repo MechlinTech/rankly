@@ -63,6 +63,8 @@ test.describe("auth flow (real browser)", () => {
     const submit = page.getByRole("button", { name: "Create account" });
 
     for (const invalidPassword of [
+      " ",
+      "a b",
       " e2e-test-password-123",
       "e2e-test-password-123 ",
       "e2e test password 123",
@@ -92,6 +94,8 @@ test.describe("auth flow (real browser)", () => {
     const submit = page.getByRole("button", { name: "Update password" });
 
     for (const invalidPassword of [
+      " ",
+      "a b",
       " e2e-test-password-123",
       "e2e-test-password-123 ",
       "e2e test password 123",
@@ -130,6 +134,8 @@ test.describe("auth flow (real browser)", () => {
     const submit = page.getByRole("button", { name: "Accept invitation" });
 
     for (const invalidPassword of [
+      " ",
+      "a b",
       " member-password-123",
       "member-password-123 ",
       "member password 123",
