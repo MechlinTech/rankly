@@ -76,15 +76,18 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
       limit: Math.min(limit, 100),
     }]);
 
+    const headers = {
+      Authorization: authHeader,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 Rankly/1.0",
+    };
+
     let response: Response;
     try {
       response = await fetch(API_URL, {
         method: "POST",
-        headers: {
-          Authorization: authHeader,
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
+        headers,
         body: requestBody,
         signal: AbortSignal.timeout(20000),
       });
@@ -92,11 +95,7 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
       if (response.status === 404) {
         response = await fetch(LEGACY_API_URL, {
           method: "POST",
-          headers: {
-            Authorization: authHeader,
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
+          headers,
           body: requestBody,
           signal: AbortSignal.timeout(20000),
         });
@@ -111,7 +110,29 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
     }
 
     if (!response.ok) {
-      throw new Error(`DataForSEO keyword lookup failed (HTTP ${response.status}). Check the DataForSEO credentials and account balance.`);
+      let detail = "";
+      try {
+        const body = (await response.json()) as {
+          status_message?: string;
+          status_code?: number;
+          message?: string;
+          tasks?: Array<{ status_message?: string; status_code?: number }>;
+        };
+        const taskMsg = body.tasks?.[0]?.status_message;
+        detail = taskMsg || body.status_message || body.message || (body.status_code ? `code ${body.status_code}` : "");
+      } catch {
+        try {
+          const raw = await response.text();
+          if (raw) {
+            const titleMatch = raw.match(/<title[^>]*>([^<]+)<\/title>/i);
+            detail = titleMatch ? titleMatch[1].trim() : raw.slice(0, 150).trim();
+          }
+        } catch {
+          // ignore
+        }
+      }
+      const suffix = detail ? `: ${detail}` : ` (HTTP ${response.status})`;
+      throw new Error(`DataForSEO keyword lookup failed${suffix}. Check credentials, permissions, and account balance.`);
     }
 
     let payload: DataForSeoResponse;
