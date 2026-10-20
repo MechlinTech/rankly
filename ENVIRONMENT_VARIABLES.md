@@ -8,7 +8,7 @@ Copy `.env.example` to `.env` for local development. Never commit `.env`. In sta
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Google sign-in returns 501 | Create in Google Cloud Console → OAuth client. Callback URL: `https://<your-domain>/api/auth/oauth/google/callback`. |
 | `MICROSOFT_CLIENT_ID` / `MICROSOFT_CLIENT_SECRET` | No | Microsoft sign-in returns 501 | Create in Azure Portal → App registrations. Callback URL: `https://<your-domain>/api/auth/oauth/microsoft/callback`. |
 | `DATAFORSEO_LOGIN` / `DATAFORSEO_PASSWORD` | No | Keyword provider factory **throws** if set without the adapter implemented; leave unset to use mock data | See `src/lib/seo/providers/index.ts`. |
-| `SERP_API_KEY` | No | Same pattern for rank tracking | |
+| `OPENSERP_API_KEY` / `SERP_API_KEY` | No | OpenSERP live ranking data and related-search/People Also Ask ideas in Keyword Research; it does not provide volume, difficulty, or CPC metrics | |
 | `ANTHROPIC_API_KEY` | No | Not currently used by any built feature | Reserved for a future AI content-assistant feature. |
 | `STRIPE_SECRET_KEY` | No | All `/api/billing/*` routes return 501 | Stripe test or live secret key. |
 | `STRIPE_WEBHOOK_SECRET` | No | Webhook route returns 501 without a key, 400 with an invalid signature | From your Stripe webhook endpoint's settings. |

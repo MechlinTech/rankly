@@ -1,4 +1,4 @@
-import type { RankTrackingProvider, SerpResult } from "./types";
+import type { KeywordDataProvider, KeywordMetrics, RankTrackingProvider, SerpResult } from "./types";
 
 interface OpenSerpPosition {
   absolute?: number;
@@ -9,12 +9,25 @@ interface OpenSerpPosition {
 
 interface OpenSerpResultItem {
   id?: string;
+  type?: string;
   domain?: string;
   display_url?: string;
   url?: string;
   title?: string;
   snippet?: string;
   position?: OpenSerpPosition;
+}
+
+interface OpenSerpFeatureItem {
+  title?: string;
+  text?: string;
+}
+
+interface OpenSerpFeature {
+  type?: string;
+  title?: string;
+  text?: string;
+  items?: OpenSerpFeatureItem[];
 }
 
 interface OpenSerpSearchResponse {
@@ -27,6 +40,11 @@ interface OpenSerpSearchResponse {
     request_id?: string;
   };
   results?: OpenSerpResultItem[];
+  serp_features?: OpenSerpFeature[];
+  relatedSearches?: Array<string | { query?: string; text?: string }>;
+  related_searches?: Array<string | { query?: string; text?: string }>;
+  peopleAlsoAsk?: Array<string | { question?: string; query?: string }>;
+  people_also_ask?: Array<string | { question?: string; query?: string }>;
   error?: string;
   message?: string;
 }
@@ -120,7 +138,7 @@ async function mapConcurrent<T, R>(
   return results;
 }
 
-export class OpenSerpRankProvider implements RankTrackingProvider {
+export class OpenSerpRankProvider implements RankTrackingProvider, KeywordDataProvider {
   readonly name = "openserp";
   readonly isMock = false;
 
@@ -296,5 +314,80 @@ export class OpenSerpRankProvider implements RankTrackingProvider {
     return mapConcurrent(cleanedTerms, 4, async (term) => {
       return this.queryTermWithRetry(term, engine, device, normalizedTarget);
     });
+  }
+
+  /**
+   * Uses Google's live SERP related-search and People Also Ask features as keyword ideas.
+   * OpenSERP does not provide volume, difficulty, or CPC metrics, so those stay null.
+   */
+  async getRelatedKeywords(term: string, locale: string, limit = 10): Promise<string[]> {
+    const params = new URLSearchParams({ text: term.trim(), device: "desktop", features: "true" });
+    const [language, region] = locale.split("-");
+    if (language) params.set("lang", language.toUpperCase());
+    if (region) params.set("region", region.toUpperCase());
+    const endpoint = `${this.baseUrl}/v1/google/search?${params.toString()}`;
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${this.apiKey.trim()}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw new Error("OpenSERP API key is invalid or unauthorized.");
+      }
+      if (response.status === 402) {
+        throw new Error("OpenSERP credits exhausted. Please recharge your balance.");
+      }
+      if (response.status === 429) {
+        throw new Error("OpenSERP rate limit reached. Please wait and try again.");
+      }
+      throw new Error(`OpenSERP keyword lookup failed (HTTP ${response.status}).`);
+    }
+
+    const data = (await response.json()) as OpenSerpSearchResponse;
+    const candidates = [
+      ...(data.serp_features ?? [])
+        .filter((feature) => ["related_searches", "related_questions", "people_also_ask"].includes(feature.type ?? ""))
+        .flatMap((feature) => {
+          if (feature.items?.length) {
+            return feature.items.map((item) => item.title || (feature.type === "related_searches" ? item.text : "") || "");
+          }
+          return feature.type === "related_searches" ? [feature.title ?? feature.text ?? ""] : [];
+        }),
+      ...(data.results ?? [])
+        .filter((item) => ["related_searches", "related_questions", "people_also_ask"].includes(item.type ?? item.position?.type ?? ""))
+        .map((item) => item.title ?? ""),
+      ...(data.relatedSearches ?? data.related_searches ?? []).map((item) =>
+        typeof item === "string" ? item : item.query || item.text || ""
+      ),
+      ...(data.peopleAlsoAsk ?? data.people_also_ask ?? []).map((item) =>
+        typeof item === "string" ? item : item.question || item.query || ""
+      ),
+    ];
+    const seen = new Set([term.trim().toLocaleLowerCase()]);
+    return candidates
+      .map((candidate) => candidate.trim())
+      .filter((candidate) => {
+        const key = candidate.toLocaleLowerCase();
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, Math.max(0, limit));
+  }
+
+  async getMetrics(terms: string[], locale: string): Promise<KeywordMetrics[]> {
+    return terms.map((term) => ({
+      term,
+      locale,
+      searchVolume: null,
+      difficulty: null,
+      cpc: null,
+      intent: null,
+    }));
   }
 }

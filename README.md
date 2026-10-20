@@ -15,8 +15,9 @@ A multi-tenant SEO / AI-search intelligence platform in the spirit of SEMrush an
 - SEO engine domain model: projects, keywords, rank snapshots, competitors, site audit runs/issues, AI-search visibility snapshots, AI usage log
 - **Real email/password auth**: signup, login, logout, bcrypt password hashing, opaque revocable sessions (DB-backed, httpOnly cookies). Signup creates a tenant + OWNER membership. Protected routes (`/keywords`, `/rankings`, `/audit`) require a valid session (`src/middleware.ts` + `src/lib/auth/`).
 - **Real, working site auditor** (`src/lib/seo/audit.ts`, `src/lib/seo/crawler`): same-origin crawler using `fetch` + `cheerio`, flags missing titles/meta/H1/canonical, thin content, slow responses, broken links, 4xx/5xx.
-- **Keyword research + rank tracking UI** (`/keywords`, `/rankings`) on top of adapter interfaces for keyword data, rank tracking, and AI-search visibility (`src/lib/seo/providers`), each with a mock implementation. Real providers (DataForSEO, SerpApi, etc.) are not implemented — the factory throws clearly if credentials are present but the adapter isn't, rather than silently faking results.
-- All three tools persist their results to Postgres, scoped to the authenticated tenant's project — verified against real DB rows, not just API responses.
+- **Keyword research + rank tracking UI** (`/keywords`, `/rankings`): OpenSERP supplies related searches, People Also Ask queries, and live ranking data when configured. Volume, difficulty, and CPC require a separate keyword metrics provider; the DataForSEO adapter is not implemented yet. Mock data is clearly identified when no OpenSERP key is set.
+- **AI-assisted SEO features**: configured AI providers generate keyword ideas on `/keywords` and recommendations from completed crawls on `/audit`. These are suggestions, not live search metrics or answer-engine visibility measurements. AI requests use the shared provider registry, fallback handling, and usage logging.
+- SEO audits, keyword lookups, and rank tracking persist results to Postgres, scoped to the authenticated tenant's project. AI recommendations and AI keyword ideas are returned to the user but not saved as records.
 - **Team invitations + RBAC** (`/team`): owners/admins invite by email + role, manage roles, deactivate/remove members. Role checks are enforced server-side on every route, not just hidden in the UI. Invites attempt real email delivery (see below) and fall back to a manually shared link if that's not configured.
 - **Email verification + forgot/reset password** (`src/lib/email/`, via Resend): signup sends a verification email; unverified users see a dashboard banner with a resend option. Forgot-password never reveals whether an email exists, and a successful reset revokes every existing session for that user. Verified end-to-end against real DB rows with no Resend key configured (the graceful-fallback path); the actual Resend API call is untested (no API key in this environment).
 - **Google/Microsoft OAuth** (`src/lib/auth/oauth/`): real OAuth 2.0 authorization-code flow for both providers. Correctly reports "not configured" without real credentials; the actual provider round-trip is untested (no Google/Microsoft test credentials in this environment).
@@ -30,7 +31,7 @@ A multi-tenant SEO / AI-search intelligence platform in the spirit of SEMrush an
 
 ## What's NOT built yet
 
-"Remember this device"/MFA, multi-tenant switching for users in more than one tenant, E2E tests in CI, and real load/pen testing/third-party data providers. See `KNOWN_LIMITATIONS.md`.
+"Remember this device"/MFA, multi-tenant switching for users in more than one tenant, E2E tests in CI, real load/pen testing, a DataForSEO keyword-metrics adapter, and an answer-engine visibility provider. OpenSERP already supplies live rank checks and related-query ideas when configured; see `KNOWN_LIMITATIONS.md` for the current coverage and gaps.
 
 ## Documentation
 
