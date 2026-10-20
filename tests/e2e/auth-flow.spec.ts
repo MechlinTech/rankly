@@ -69,7 +69,7 @@ test.describe("auth flow (real browser)", () => {
     ]) {
       await password.fill(invalidPassword);
       await submit.click();
-      await expect(page.getByRole("alert")).toHaveText("Password must not contain spaces.");
+      await expect(page.locator('p[role="alert"]')).toHaveText("Password must not contain spaces.");
       expect(page.url()).toContain("/signup");
     }
   });
