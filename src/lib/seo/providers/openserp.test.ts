@@ -204,4 +204,51 @@ describe("OpenSerpRankProvider", () => {
     expect(results).toHaveLength(5);
     expect(globalThis.fetch).toHaveBeenCalledTimes(5);
   });
+
+  it("extracts related searches and questions without treating answers as keywords", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [],
+        serp_features: [
+          {
+            type: "related_searches",
+            items: [{ title: "keyword research tool" }, { text: "keyword research software" }],
+          },
+          {
+            type: "people_also_ask",
+            items: [{ title: "What is keyword research?", text: "A process for finding useful search terms." }],
+          },
+        ],
+      }),
+    } as unknown as Response);
+
+    const provider = new OpenSerpRankProvider("test-key");
+    const ideas = await provider.getRelatedKeywords("keyword research", "en-US", 10);
+    const requestUrl = new URL((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][0]);
+
+    expect(ideas).toEqual([
+      "keyword research tool",
+      "keyword research software",
+      "What is keyword research?",
+    ]);
+    expect(requestUrl.searchParams.get("text")).toBe("keyword research");
+    expect(requestUrl.searchParams.get("lang")).toBe("EN");
+    expect(requestUrl.searchParams.get("region")).toBe("US");
+    expect(requestUrl.searchParams.get("features")).toBe("true");
+  });
+
+  it("returns no invented search metrics for OpenSERP keyword terms", async () => {
+    const provider = new OpenSerpRankProvider("test-key");
+    await expect(provider.getMetrics(["related query"], "en-US")).resolves.toEqual([
+      {
+        term: "related query",
+        locale: "en-US",
+        searchVolume: null,
+        difficulty: null,
+        cpc: null,
+        intent: null,
+      },
+    ]);
+  });
 });
