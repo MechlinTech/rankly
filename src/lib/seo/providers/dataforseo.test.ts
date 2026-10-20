@@ -57,4 +57,43 @@ describe("DataForSEO keyword provider", () => {
       { term: "app development services", locale: "en-US", searchVolume: 800, difficulty: 51, cpc: 3.25, intent: null },
     ]);
   });
+
+  it("handles seed_keyword_data as an object and extracts search intent", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status_code: 20000,
+        status_message: "Ok.",
+        tasks: [{
+          status_code: 20000,
+          status_message: "Ok.",
+          result: [{
+            seed_keyword_data: {
+              keyword: "crm software",
+              keyword_info: { search_volume: 5000, cpc: 12.0 },
+              keyword_properties: { keyword_difficulty: 75 },
+              search_intent_info: { main_intent: "commercial" },
+            },
+            items: [{
+              keyword: "best crm software",
+              keyword_info: { search_volume: 2400, cpc: 9.5 },
+              keyword_properties: { keyword_difficulty: 68 },
+              search_intent_info: { main_intent: "transactional" },
+            }],
+          }],
+        }],
+      }),
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = new DataForSeoKeywordProvider("user", "pass");
+    const terms = await provider.getRelatedKeywords("crm software", "en-US", 10);
+    const metrics = await provider.getMetrics(["crm software", "best crm software"], "en-US");
+
+    expect(terms).toEqual(["best crm software"]);
+    expect(metrics).toEqual([
+      { term: "crm software", locale: "en-US", searchVolume: 5000, difficulty: 75, cpc: 12.0, intent: "commercial" },
+      { term: "best crm software", locale: "en-US", searchVolume: 2400, difficulty: 68, cpc: 9.5, intent: "transactional" },
+    ]);
+  });
 });
