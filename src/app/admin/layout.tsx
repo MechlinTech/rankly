@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
+import { SessionGuard } from "@/components/session-guard";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -21,6 +22,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <SessionGuard />
       {/* Super Admin Top Header */}
       <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200/80 bg-white/95 px-6 py-2.5 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-900/95 shadow-2xs">
         <div className="flex items-center gap-4">

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { getCurrentTenantContext } from "@/lib/auth/tenant";
 import { getCurrentUser } from "@/lib/auth/session";
 import { LogoutButton } from "@/components/logout-button";
+import { SessionGuard } from "@/components/session-guard";
 import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -44,6 +45,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 sm:h-screen sm:overflow-hidden">
+      <SessionGuard />
       <aside className="hidden w-60 shrink-0 flex-col border-r border-slate-200 bg-white px-4 py-6 dark:border-slate-800 dark:bg-slate-900 sm:flex sm:h-full">
         <div className="mb-8 shrink-0 px-2 text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
           Rankly

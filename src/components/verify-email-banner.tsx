@@ -49,7 +49,7 @@ export function VerifyEmailBanner() {
             <h3 className="text-sm font-semibold text-amber-950 dark:text-amber-100">
               Please verify your email address.
             </h3>
-            <p className="mt-0.5 text-xs text-amber-800/80 dark:text-amber-300/80">
+            <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-300">
               Check your inbox for the confirmation link to secure your account.
             </p>
           </div>
