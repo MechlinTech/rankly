@@ -4,6 +4,24 @@ import { useSyncExternalStore } from "react";
 
 export type Theme = "light" | "dark";
 
+/**
+ * Return the site to its default light theme.
+ *
+ * Used on logout so a previously chosen dark theme is not restored on the next
+ * visit. Writing the explicit "light" value (rather than removing the key)
+ * guarantees light mode even when the OS prefers dark, since the startup script
+ * otherwise falls back to `prefers-color-scheme`.
+ */
+export function resetThemeToLight(): void {
+  if (typeof document === "undefined") return;
+  document.documentElement.classList.remove("dark");
+  try {
+    localStorage.setItem("theme", "light");
+  } catch {
+    // Storage can be unavailable (private mode); the class removal above still applies.
+  }
+}
+
 function subscribe(callback: () => void) {
   if (typeof window === "undefined") return () => {};
 

@@ -39,7 +39,7 @@ export function PasswordField({
         aria-pressed={visible}
         onClick={() => setVisible((current) => !current)}
       >
-        {visible ? <EyeOffIcon /> : <EyeIcon />}
+        {visible ? <EyeIcon /> : <EyeOffIcon />}
       </button>
     </div>
   );
