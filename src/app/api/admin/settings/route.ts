@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/super-admin";
 import { maskApiKey } from "@/lib/admin/settings-tester";
-import { persistApiKeys } from "@/lib/admin/env-manager";
+import { getIntegrationCredential, getOpenSerpCredential, saveIntegrationCredentials } from "@/lib/admin/integration-credentials";
 import { prisma } from "@/lib/db";
+import { DecryptionError, EncryptionConfigError } from "@/lib/crypto/encryption";
 import { z } from "zod";
 
 export interface IntegrationConfig {
@@ -24,17 +25,24 @@ export async function GET() {
   const { user, response } = await requireSuperAdmin();
   if (!user) return response;
 
-  const openSerpVal = process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY;
-  const resendVal = process.env.RESEND_API_KEY;
-  const resendFromVal = process.env.RESEND_FROM_EMAIL || process.env.EMAIL_FROM;
-  const stripeVal = process.env.STRIPE_SECRET_KEY;
-  const stripeWebhookVal = process.env.STRIPE_WEBHOOK_SECRET;
-  const dataforseoLogin = process.env.DATAFORSEO_LOGIN;
-  const dataforseoPass = process.env.DATAFORSEO_PASSWORD;
-  const googleClientId = process.env.GOOGLE_CLIENT_ID;
-  const googleSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const msClientId = process.env.MICROSOFT_CLIENT_ID;
-  const msSecret = process.env.MICROSOFT_CLIENT_SECRET;
+  try {
+  const openSerpCredential = await getOpenSerpCredential();
+  const openSerpVal = openSerpCredential.value;
+  const [
+    resendVal, resendFromVal, stripeVal, stripeWebhookVal, dataforseoLogin, dataforseoPass,
+    googleClientId, googleSecret, msClientId, msSecret,
+  ] = await Promise.all([
+    getIntegrationCredential("RESEND_API_KEY"),
+    getIntegrationCredential("RESEND_FROM_EMAIL").then((value) => value || getIntegrationCredential("EMAIL_FROM")),
+    getIntegrationCredential("STRIPE_SECRET_KEY"),
+    getIntegrationCredential("STRIPE_WEBHOOK_SECRET"),
+    getIntegrationCredential("DATAFORSEO_LOGIN"),
+    getIntegrationCredential("DATAFORSEO_PASSWORD"),
+    getIntegrationCredential("GOOGLE_CLIENT_ID"),
+    getIntegrationCredential("GOOGLE_CLIENT_SECRET"),
+    getIntegrationCredential("MICROSOFT_CLIENT_ID"),
+    getIntegrationCredential("MICROSOFT_CLIENT_SECRET"),
+  ]);
 
   let aiTotal = 0;
   let aiActive = 0;
@@ -46,7 +54,7 @@ export async function GET() {
     aiTotal = t;
     aiActive = a;
   } catch {
-    // If DB is offline or mock, do not crash settings page
+    // Integration settings can still render if AI provider stats are unavailable.
   }
 
   const integrations: IntegrationConfig[] = [
@@ -58,7 +66,7 @@ export async function GET() {
       envKey: "OPENSERP_API_KEY",
       aliasKey: "SERP_API_KEY",
       isConfigured: Boolean(openSerpVal?.trim()),
-      maskedValue: maskApiKey(openSerpVal),
+      maskedValue: openSerpCredential.maskedValue,
       placeholder: "osk_live_...",
     },
     {
@@ -91,7 +99,7 @@ export async function GET() {
       id: "dataforseo",
       name: "DataForSEO API",
       category: "Search & SEO",
-      description: "Provides global keyword metrics, search volume, cost-per-click, and difficulty in /keywords.",
+      description: "Provides live keyword suggestions, search volume, cost-per-click, and difficulty in /keywords. Provider charges may apply.",
       envKey: "DATAFORSEO_LOGIN",
       extraKey: "DATAFORSEO_PASSWORD",
       extraLabel: "API Password",
@@ -135,6 +143,13 @@ export async function GET() {
       active: aiActive,
     },
   });
+  } catch (error) {
+    console.error("Failed to load admin integration settings.", error);
+    const message = error instanceof EncryptionConfigError || error instanceof DecryptionError
+      ? error.message
+      : "Unable to load integration settings. Check the server and database configuration.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 const updateSchema = z.object({
@@ -153,12 +168,18 @@ export async function POST(req: NextRequest) {
 
   const { updates } = parsed.data;
 
-  // If OPENSERP_API_KEY is updated, also update SERP_API_KEY for backward compatibility
-  if (updates.OPENSERP_API_KEY && !updates.SERP_API_KEY) {
-    updates.SERP_API_KEY = updates.OPENSERP_API_KEY;
+  const durableUpdates = { ...updates };
+  if (durableUpdates.OPENSERP_API_KEY && !durableUpdates.SERP_API_KEY) {
+    durableUpdates.SERP_API_KEY = durableUpdates.OPENSERP_API_KEY;
   }
-
-  await persistApiKeys(updates);
+  if (durableUpdates.RESEND_FROM_EMAIL && !durableUpdates.EMAIL_FROM) {
+    durableUpdates.EMAIL_FROM = durableUpdates.RESEND_FROM_EMAIL;
+  }
+  try {
+    await saveIntegrationCredentials(durableUpdates, user.id);
+  } catch {
+    return NextResponse.json({ error: "Could not persist the settings in the database. Check database connectivity and try again." }, { status: 500 });
+  }
 
   // Record audit log
   await prisma.auditLog.create({
@@ -166,12 +187,12 @@ export async function POST(req: NextRequest) {
       actorId: user.id,
       action: "ADMIN_UPDATED_API_SETTINGS",
       target: "SYSTEM_ENVIRONMENT",
-      metadata: { keysUpdated: Object.keys(updates) },
+    metadata: { keysUpdated: Object.keys(durableUpdates) },
     },
   }).catch(() => {});
 
   return NextResponse.json({
     ok: true,
-    message: "API settings updated and applied to system runtime successfully.",
+    message: "API settings securely saved and applied to the active runtime.",
   });
 }

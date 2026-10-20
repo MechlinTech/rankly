@@ -16,7 +16,7 @@ function redirectUriFor(req: NextRequest, provider: string): string {
 }
 
 export async function handleOAuthStart(req: NextRequest, adapter: OAuthProviderAdapter) {
-  if (!adapter.isConfigured()) {
+  if (!(await adapter.isConfigured())) {
     return NextResponse.json(
       { error: `${adapter.name} sign-in is not configured on this deployment yet.` },
       { status: 501 }
@@ -25,7 +25,7 @@ export async function handleOAuthStart(req: NextRequest, adapter: OAuthProviderA
 
   const state = randomBytes(24).toString("hex");
   const redirectUri = redirectUriFor(req, adapter.name.toLowerCase());
-  const authUrl = adapter.getAuthorizationUrl(state, redirectUri);
+  const authUrl = await adapter.getAuthorizationUrl(state, redirectUri);
 
   const cookieStore = await cookies();
   cookieStore.set(`${STATE_COOKIE_PREFIX}${adapter.name}`, state, {
@@ -40,7 +40,7 @@ export async function handleOAuthStart(req: NextRequest, adapter: OAuthProviderA
 }
 
 export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProviderAdapter) {
-  if (!adapter.isConfigured()) {
+  if (!(await adapter.isConfigured())) {
     return NextResponse.json(
       { error: `${adapter.name} sign-in is not configured on this deployment yet.` },
       { status: 501 }

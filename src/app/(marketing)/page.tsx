@@ -4,7 +4,7 @@ import { PricingCards } from "@/components/pricing-cards";
 const FEATURES = [
   {
     title: "Keyword research",
-    description: "Search volume, difficulty, CPC, and intent for any seed keyword, plus related-term suggestions.",
+    description: "Explore related searches and questions, generate AI keyword ideas, and review search metrics when a metrics provider is connected.",
   },
   {
     title: "Rank tracking",
@@ -37,7 +37,7 @@ const STEPS = [
 const FAQS = [
   {
     q: "Is this connected to real keyword/ranking data providers?",
-    a: "The site auditor runs a real crawl today. Keyword and rank data currently use representative mock data while we finalize a data provider — this is disclosed in-product, not hidden.",
+    a: "The site auditor runs a real crawl. When OpenSERP is configured, Rankly retrieves live ranking results and related searches/questions. Without it, the app labels its fallback data; search volume, difficulty, and CPC need a separate metrics provider.",
   },
   {
     q: "Can I invite my team?",

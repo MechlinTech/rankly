@@ -284,6 +284,30 @@ describe("AI Provider Adapters", () => {
       );
     });
 
+    it("retries transient 503 overload responses before failing", async () => {
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          body: null,
+          text: async () => JSON.stringify({ error: { message: "This model is currently experiencing high demand." } }),
+          headers: new Headers(),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            candidates: [{ content: { parts: [{ text: "Recovered" }] } }],
+            usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+          }),
+        });
+
+      const adapter = new GeminiAdapter({ apiKey: "AIzaSyTest", model: "gemini-3.8-flash" });
+      const result = await adapter.generateText({ messages: [{ role: "user", content: "ping" }] });
+
+      expect(result.text).toBe("Recovered");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
     it("maps 400 INVALID_ARGUMENT key error to InvalidApiKeyError", async () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,

@@ -1,25 +1,30 @@
 import { Resend } from "resend";
+import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 
 /** EMAIL_FROM is canonical. RESEND_FROM_EMAIL is accepted so existing deployments keep sending. */
-export function emailFromAddress(): string | undefined {
-  const value = (process.env.EMAIL_FROM || process.env.RESEND_FROM_EMAIL)?.trim();
+export async function emailFromAddress(): Promise<string | undefined> {
+  const value = (await getIntegrationCredential("EMAIL_FROM")) || (await getIntegrationCredential("RESEND_FROM_EMAIL"));
   return value || undefined;
 }
 
-export function isEmailConfigured(): boolean {
-  return !!(process.env.RESEND_API_KEY && emailFromAddress());
+export async function isEmailConfigured(): Promise<boolean> {
+  const [apiKey, from] = await Promise.all([
+    getIntegrationCredential("RESEND_API_KEY"),
+    emailFromAddress(),
+  ]);
+  return !!(apiKey && from);
 }
 
-let client: Resend | null = null;
+let client: { apiKey: string; instance: Resend } | null = null;
 
-function getClient(): Resend {
-  if (!process.env.RESEND_API_KEY) {
+function getClient(apiKey: string): Resend {
+  if (!apiKey) {
     throw new Error("RESEND_API_KEY is not set.");
   }
-  if (!client) {
-    client = new Resend(process.env.RESEND_API_KEY);
+  if (!client || client.apiKey !== apiKey) {
+    client = { apiKey, instance: new Resend(apiKey) };
   }
-  return client;
+  return client.instance;
 }
 
 export interface SendEmailInput {
@@ -41,16 +46,14 @@ export interface SendEmailResult {
  * directly (e.g. showing an invite link in the UI) instead of crashing.
  */
 export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult> {
-  if (!isEmailConfigured()) {
+  const [apiKey, from] = await Promise.all([
+    getIntegrationCredential("RESEND_API_KEY"),
+    emailFromAddress(),
+  ]);
+  if (!apiKey || !from) {
     return { sent: false, reason: "No email provider configured (RESEND_API_KEY / EMAIL_FROM unset)." };
   }
-
-  const from = emailFromAddress();
-  if (!from) {
-    return { sent: false, reason: "No email provider configured (RESEND_API_KEY / EMAIL_FROM unset)." };
-  }
-
-  const resend = getClient();
+  const resend = getClient(apiKey);
   const result = await resend.emails.send({
     from,
     to: input.to,

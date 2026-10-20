@@ -133,26 +133,38 @@ export class GeminiAdapter implements AiProviderAdapter {
       ...(systemPrompt ? { systemInstruction: { parts: [{ text: systemPrompt }] } } : {}),
     };
 
-    let res: Response;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
+    let res!: Response;
+    const maxAttempts = 3;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const abortFromRequest = () => controller.abort();
+        req.abortSignal?.addEventListener("abort", abortFromRequest, { once: true });
 
-      if (req.abortSignal) {
-        req.abortSignal.addEventListener("abort", () => controller.abort());
+        try {
+          res = await fetch(`${GEMINI_BASE_URL}/models/${modelToUse}:generateContent`, {
+            method: "POST",
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+          req.abortSignal?.removeEventListener("abort", abortFromRequest);
+        }
+      } catch (err: unknown) {
+        const durationMs = Date.now() - start;
+        throw this.transformNetworkException(err, durationMs);
       }
 
-      res = await fetch(`${GEMINI_BASE_URL}/models/${modelToUse}:generateContent`, {
-        method: "POST",
-        headers: this.getHeaders(),
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+      if (res.status !== 503 || attempt === maxAttempts - 1 || req.abortSignal?.aborted) break;
 
-      clearTimeout(timer);
-    } catch (err: unknown) {
-      const durationMs = Date.now() - start;
-      throw this.transformNetworkException(err, durationMs);
+      // Google recommends exponential backoff for transient 503 UNAVAILABLE
+      // responses. Keep retries bounded and add jitter to avoid synchronized retries.
+      await res.body?.cancel().catch(() => {});
+      const backoffMs = 800 * 2 ** attempt + Math.floor(Math.random() * 300);
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
 
     const durationMs = Date.now() - start;
