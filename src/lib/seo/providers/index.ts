@@ -7,6 +7,11 @@ import { OpenSerpRankProvider } from "./openserp";
 // fall back to mock data and mark it as such (isMock = true) rather than pretending.
 
 export function getKeywordDataProvider(): KeywordDataProvider {
+  const openSerpApiKey = process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY;
+  if (openSerpApiKey?.trim()) {
+    return new OpenSerpRankProvider(openSerpApiKey.trim());
+  }
+
   if (process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD) {
     throw new Error(
       "DataForSEO credentials detected but the real adapter is not implemented yet. " +

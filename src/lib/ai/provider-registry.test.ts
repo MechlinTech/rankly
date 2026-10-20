@@ -134,6 +134,44 @@ describe("AI Provider Registry & Fallback Orchestration", () => {
       expect(response.provider).toBe("OPENAI");
     });
 
+    it("waits for the usage record attempt before returning a completion", async () => {
+      const encryptedKey = encryptSecret("sk-proj-primary-key");
+      (vi.spyOn(prisma.aiProviderConfig, "findFirst") as unknown as ReturnType<typeof vi.fn>).mockImplementation(async (args) => {
+        if (args?.where?.isDefault) {
+          return mockConfig({ encryptedApiKey: encryptedKey, isDefault: true });
+        }
+        return null;
+      });
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ choices: [{ message: { content: "Answer" } }], usage: { prompt_tokens: 2, completion_tokens: 1, total_tokens: 3 } }),
+      });
+
+      let finishLog!: () => void;
+      const pendingLog = new Promise<void>((resolve) => { finishLog = resolve; });
+      const logSpy = (vi.spyOn(prisma.aiActivityLog, "create") as unknown as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+        await pendingLog;
+        return {} as never;
+      });
+
+      let completed = false;
+      const completion = executeAiCompletion({
+        feature: "keyword-ideas",
+        tenantId: "tenant-1",
+        userId: "user-1",
+        messages: [{ role: "user", content: "Test" }],
+      }).then((response) => {
+        completed = true;
+        return response;
+      });
+
+      await vi.waitFor(() => expect(logSpy).toHaveBeenCalledOnce());
+      expect(completed).toBe(false);
+      finishLog();
+      await expect(completion).resolves.toMatchObject({ text: "Answer" });
+      expect(completed).toBe(true);
+    });
+
     it("automatically fails over to secondary fallback provider on primary 429 rate limit", async () => {
       const primaryKey = encryptSecret("sk-proj-primary-key");
       const fallbackKey = encryptSecret("AIzaSy-fallback-key");

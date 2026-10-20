@@ -24,7 +24,7 @@ Status as of 2026-09-17. This distinguishes **compliance-ready controls actually
 
 ## AI governance
 
-The AI-search visibility feature is currently mock data only (no live AI provider integration is enforced yet), so AI governance controls (prompt injection defenses, model usage logging, human override) described in the original product brief are **not yet applicable** — they should be designed before any real LLM-backed feature (e.g. a future content assistant) is built, not retrofitted after.
+AI-search visibility is still mock data, but the configured LLM provider is used for keyword ideas and site-audit recommendations. These features treat supplied crawl values as untrusted data, validate structured responses, log token usage, and present suggestions for a human to review; they do not apply changes automatically. Review prompt/data handling and provider retention settings before sending customer data to a production provider.
 
 ## What "compliance-ready" does NOT mean here
 
