@@ -13,4 +13,9 @@ export default defineConfig({
     hookTimeout: 60_000,
     fileParallelism: false,
   },
+  resolve: {
+    alias: {
+      "@": "./src",
+    },
+  },
 });

@@ -10,9 +10,18 @@ import { getIntegrationCredential, getOpenSerpCredential } from "@/lib/admin/int
 
 export async function getKeywordDataProvider(): Promise<KeywordDataProvider> {
   const [{ value: openSerpApiKey }, dataForSeoLogin, dataForSeoPassword] = await Promise.all([
-    getOpenSerpCredential(),
-    getIntegrationCredential("DATAFORSEO_LOGIN"),
-    getIntegrationCredential("DATAFORSEO_PASSWORD"),
+    getOpenSerpCredential().catch((err) => {
+      console.warn("[getKeywordDataProvider] Could not read OpenSERP credential:", err);
+      return { value: process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY || null, maskedValue: null };
+    }),
+    getIntegrationCredential("DATAFORSEO_LOGIN").catch((err) => {
+      console.warn("[getKeywordDataProvider] Could not read DataForSEO login:", err);
+      return process.env.DATAFORSEO_LOGIN || null;
+    }),
+    getIntegrationCredential("DATAFORSEO_PASSWORD").catch((err) => {
+      console.warn("[getKeywordDataProvider] Could not read DataForSEO password:", err);
+      return process.env.DATAFORSEO_PASSWORD || null;
+    }),
   ]);
   if (dataForSeoLogin?.trim() && dataForSeoPassword?.trim()) {
     return new DataForSeoKeywordProvider(dataForSeoLogin, dataForSeoPassword);
@@ -27,7 +36,10 @@ export async function getKeywordDataProvider(): Promise<KeywordDataProvider> {
 }
 
 export async function getRankTrackingProvider(): Promise<RankTrackingProvider> {
-  const { value: apiKey } = await getOpenSerpCredential();
+  const { value: apiKey } = await getOpenSerpCredential().catch((err) => {
+    console.warn("[getRankTrackingProvider] Could not read OpenSERP credential:", err);
+    return { value: process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY || null, maskedValue: null };
+  });
   if (apiKey?.trim()) {
     return new OpenSerpRankProvider(apiKey.trim());
   }

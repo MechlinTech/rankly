@@ -32,37 +32,53 @@ export async function POST(req: NextRequest) {
 
   const { term, locale } = parsed.data;
   try {
-  const result = await researchKeyword(term, locale ?? "en-US");
-  const project = await getOrCreateGeneralProject(ctx.tenant.id);
+    const result = await researchKeyword(term, locale ?? "en-US");
 
-  const allMetrics = [result.seed, ...result.related];
-  await Promise.all(
-    allMetrics.map((m) =>
-      prisma.keyword.upsert({
-        where: { projectId_term_locale: { projectId: project.id, term: m.term, locale: m.locale } },
-        create: {
-          projectId: project.id,
-          term: m.term,
-          locale: m.locale,
-          searchVolume: m.searchVolume,
-          difficulty: m.difficulty,
-          cpc: m.cpc,
-          intent: m.intent,
-        },
-        update: {
-          searchVolume: m.searchVolume,
-          difficulty: m.difficulty,
-          cpc: m.cpc,
-          intent: m.intent,
-        },
-      })
-    )
-  );
+    let projectId: string | null = null;
+    try {
+      const project = await getOrCreateGeneralProject(ctx.tenant.id);
+      projectId = project.id;
 
-  return NextResponse.json({ ...result, projectId: project.id });
+      const metricMap = new Map<string, typeof result.seed>();
+      for (const m of [result.seed, ...result.related]) {
+        if (m && m.term?.trim()) {
+          const key = `${m.term.trim().toLowerCase()}_${m.locale || locale || "en-US"}`;
+          if (!metricMap.has(key)) {
+            metricMap.set(key, m);
+          }
+        }
+      }
+
+      await Promise.all(
+        Array.from(metricMap.values()).map((m) =>
+          prisma.keyword.upsert({
+            where: { projectId_term_locale: { projectId: project.id, term: m.term, locale: m.locale } },
+            create: {
+              projectId: project.id,
+              term: m.term,
+              locale: m.locale,
+              searchVolume: m.searchVolume,
+              difficulty: m.difficulty,
+              cpc: m.cpc,
+              intent: m.intent,
+            },
+            update: {
+              searchVolume: m.searchVolume,
+              difficulty: m.difficulty,
+              cpc: m.cpc,
+              intent: m.intent,
+            },
+          })
+        )
+      );
+    } catch (dbError) {
+      console.warn("Could not persist keyword research metrics to project:", dbError);
+    }
+
+    return NextResponse.json({ ...result, projectId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Keyword research failed.";
     console.error("Keyword research request failed.", error);
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

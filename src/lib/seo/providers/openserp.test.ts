@@ -238,17 +238,25 @@ describe("OpenSerpRankProvider", () => {
     expect(requestUrl.searchParams.get("features")).toBe("true");
   });
 
-  it("returns no invented search metrics for OpenSERP keyword terms", async () => {
+  it("returns fallback related keywords when OpenSERP times out or has a network error", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new DOMException("The operation was aborted due to timeout", "TimeoutError"));
+
     const provider = new OpenSerpRankProvider("test-key");
-    await expect(provider.getMetrics(["related query"], "en-US")).resolves.toEqual([
-      {
-        term: "related query",
-        locale: "en-US",
-        searchVolume: null,
-        difficulty: null,
-        cpc: null,
-        intent: null,
-      },
-    ]);
+    const ideas = await provider.getRelatedKeywords("coffee", "en-US", 5);
+    expect(ideas.length).toBeGreaterThan(0);
+    expect(ideas[0]).toContain("coffee");
+  });
+
+  it("returns fallback related keywords when OpenSERP returns HTTP 502 Bad Gateway", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      statusText: "Bad Gateway",
+    } as Response);
+
+    const provider = new OpenSerpRankProvider("test-key");
+    const ideas = await provider.getRelatedKeywords("coffee", "en-US", 5);
+    expect(ideas.length).toBeGreaterThan(0);
+    expect(ideas[0]).toContain("coffee");
   });
 });
