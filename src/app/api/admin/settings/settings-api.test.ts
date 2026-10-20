@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 import * as authSuperAdmin from "@/lib/auth/super-admin";
+import * as integrationCredentials from "@/lib/admin/integration-credentials";
 import { prisma } from "@/lib/db";
 import type { User } from "@/generated/prisma/client";
 import { encryptSecret } from "@/lib/crypto/encryption";
+import { EncryptionConfigError } from "@/lib/crypto/encryption";
+import { NextRequest } from "next/server";
 
 function mockAdminUser(): User {
   return {
@@ -107,5 +110,49 @@ describe("GET /api/admin/settings", () => {
     const resend = data.integrations.find((item: { id: string }) => item.id === "resend");
     expect(openserp.isConfigured).toBe(true);
     expect(resend.isConfigured).toBe(true);
+  });
+});
+
+describe("POST /api/admin/settings", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("returns an actionable error when credential encryption is not configured", async () => {
+    vi.spyOn(authSuperAdmin, "requireSuperAdmin").mockResolvedValueOnce({
+      user: mockAdminUser(),
+      response: null,
+    });
+    vi.spyOn(integrationCredentials, "saveIntegrationCredentials")
+      .mockRejectedValueOnce(new EncryptionConfigError());
+
+    const request = new NextRequest("http://localhost/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: { OPENSERP_API_KEY: "osk_live_test-key" } }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toContain("APP_ENCRYPTION_KEY");
+  });
+
+  it("returns an actionable error when the credentials table migration is missing", async () => {
+    vi.spyOn(authSuperAdmin, "requireSuperAdmin").mockResolvedValueOnce({
+      user: mockAdminUser(),
+      response: null,
+    });
+    vi.spyOn(integrationCredentials, "saveIntegrationCredentials")
+      .mockRejectedValueOnce(Object.assign(new Error("missing table"), { code: "P2021" }));
+
+    const request = new NextRequest("http://localhost/api/admin/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates: { DATAFORSEO_LOGIN: "seo@example.com" } }),
+    });
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data.error).toContain("Prisma migration");
   });
 });
