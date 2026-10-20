@@ -4,13 +4,14 @@ import type { KeywordMetrics } from "./providers/types";
 export interface KeywordResearchResult {
   seedTerm: string;
   locale: string;
+  dataProvider: string;
   isMockData: boolean;
   seed: KeywordMetrics;
   related: KeywordMetrics[];
 }
 
 export async function researchKeyword(seedTerm: string, locale = "en-US"): Promise<KeywordResearchResult> {
-  const provider = getKeywordDataProvider();
+  const provider = await getKeywordDataProvider();
   const relatedTerms = await provider.getRelatedKeywords(seedTerm, locale, 10);
   const allMetrics = await provider.getMetrics([seedTerm, ...relatedTerms], locale);
 
@@ -19,6 +20,7 @@ export async function researchKeyword(seedTerm: string, locale = "en-US"): Promi
   return {
     seedTerm,
     locale,
+    dataProvider: provider.name,
     isMockData: provider.isMock,
     seed,
     related,

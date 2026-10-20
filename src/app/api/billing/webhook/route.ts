@@ -43,7 +43,7 @@ async function upsertFromSubscription(subscription: Stripe.Subscription) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfigured())) {
     return NextResponse.json({ error: "Billing is not configured on this deployment yet." }, { status: 501 });
   }
 
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = verifyWebhookSignature(rawBody, signature);
+    event = await verifyWebhookSignature(rawBody, signature);
   } catch {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.subscription && typeof session.subscription === "string") {
-        const stripe = getStripeClient();
+        const stripe = await getStripeClient();
         const subscription = await stripe.subscriptions.retrieve(session.subscription);
         await upsertFromSubscription(subscription);
       }

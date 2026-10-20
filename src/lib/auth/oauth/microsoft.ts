@@ -1,4 +1,5 @@
 import type { OAuthProviderAdapter, OAuthUserInfo } from "./types";
+import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 
 const AUTH_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize";
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
@@ -14,13 +15,19 @@ const USERINFO_URL = "https://graph.microsoft.com/oidc/userinfo";
 export const microsoftOAuthAdapter: OAuthProviderAdapter = {
   name: "MICROSOFT",
 
-  isConfigured() {
-    return !!(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET);
+  async isConfigured() {
+    const [clientId, clientSecret] = await Promise.all([
+      getIntegrationCredential("MICROSOFT_CLIENT_ID"),
+      getIntegrationCredential("MICROSOFT_CLIENT_SECRET"),
+    ]);
+    return !!(clientId && clientSecret);
   },
 
-  getAuthorizationUrl(state: string, redirectUri: string) {
+  async getAuthorizationUrl(state: string, redirectUri: string) {
+    const clientId = await getIntegrationCredential("MICROSOFT_CLIENT_ID");
+    if (!clientId) throw new Error("MICROSOFT_CLIENT_ID is not configured.");
     const params = new URLSearchParams({
-      client_id: process.env.MICROSOFT_CLIENT_ID!,
+      client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
       scope: "openid email profile User.Read",
@@ -31,13 +38,18 @@ export const microsoftOAuthAdapter: OAuthProviderAdapter = {
   },
 
   async exchangeCodeForUser(code: string, redirectUri: string): Promise<OAuthUserInfo> {
+    const [clientId, clientSecret] = await Promise.all([
+      getIntegrationCredential("MICROSOFT_CLIENT_ID"),
+      getIntegrationCredential("MICROSOFT_CLIENT_SECRET"),
+    ]);
+    if (!clientId || !clientSecret) throw new Error("Microsoft OAuth credentials are not configured.");
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         code,
-        client_id: process.env.MICROSOFT_CLIENT_ID!,
-        client_secret: process.env.MICROSOFT_CLIENT_SECRET!,
+        client_id: clientId,
+        client_secret: clientSecret,
         redirect_uri: redirectUri,
         grant_type: "authorization_code",
       }),

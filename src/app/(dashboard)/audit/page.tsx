@@ -4,21 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, CardHeader, EmptyState, Input, Pagination, paginateItems, Spinner } from "@/components/ui";
 import type { AuditRunResult } from "@/lib/seo/audit";
+import { validateAuditDomain } from "@/lib/seo/audit-validation";
 import { postJson, UnauthorizedError } from "@/lib/api-client";
 
 function SeverityBadge({ severity }: { severity: "CRITICAL" | "WARNING" | "INFO" }) {
   const tone = severity === "CRITICAL" ? "critical" : severity === "WARNING" ? "warning" : "info";
   return <Badge tone={tone}>{severity}</Badge>;
-}
-
-const DOMAIN_REGEX = /^[a-zA-Z0-9.-]+(\.[a-zA-Z]{2,})+$/;
-
-export function validateAuditDomain(domain: string): string | null {
-  const trimmed = domain.trim();
-  if (!trimmed || trimmed.length < 3 || trimmed.length > 255 || !DOMAIN_REGEX.test(trimmed)) {
-    return "Enter a valid domain.";
-  }
-  return null;
 }
 
 export default function SiteAuditPage() {

@@ -39,7 +39,7 @@ All routes require a session and a non-suspended tenant. Audit, keyword lookup, 
 | `/api/seo/audit` | POST | `{ domain, maxPages? }`. Runs a real crawl. Rate-limited and entitlement-checked (max audits/month) — 402 if exceeded. |
 | `/api/seo/ai-insights` | POST | `{ auditRunId }`. Uses the configured platform AI provider to produce recommendations from a completed audit owned by the caller's tenant. Limited to 10 requests/hour per tenant; 503 if no AI provider is configured. |
 | `/api/seo/keywords/ideas` | POST | `{ term, locale? }`. Uses the configured platform AI provider to generate keyword ideas with intent labels and rationales (no search metrics). Limited to 20 requests/hour per tenant; 503 if no AI provider is configured. |
-| `/api/seo/keywords` | POST | `{ term, locale? }`. Uses OpenSERP related searches/PAA if `OPENSERP_API_KEY` is configured; otherwise uses mock data. Search volume, difficulty, and CPC remain unavailable without a keyword metrics provider. Persists to `Keyword`. |
+| `/api/seo/keywords` | POST | `{ term, locale? }`. Uses DataForSEO suggestions and metrics when DataForSEO login/password are configured; otherwise uses OpenSERP's best-effort related searches/PAA when `OPENSERP_API_KEY` is configured, then labeled mock data if no live provider is configured. DataForSEO requests may be billable. Persists to `Keyword`. |
 | `/api/seo/rankings` | POST | `{ domain, terms[], engine?, device? }`. Uses OpenSERP when configured; otherwise uses mock data. Persists to `RankSnapshot`. |
 
 ## Billing — `src/app/api/billing/`

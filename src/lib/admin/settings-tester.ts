@@ -187,11 +187,17 @@ export async function testStripe(key: string): Promise<TestResult> {
   }
 }
 
-export async function testDataForSeo(login: string, password?: string): Promise<TestResult> {
+export async function testDataForSeo(login: string, password: string): Promise<TestResult> {
   const start = Date.now();
   try {
-    const pass = password || "";
-    const authHeader = `Basic ${Buffer.from(`${login.trim()}:${pass.trim()}`).toString("base64")}`;
+    if (!login.trim() || !password.trim()) {
+      return {
+        success: false,
+        message: "Enter both the DataForSEO API login and password.",
+        latencyMs: Date.now() - start,
+      };
+    }
+    const authHeader = `Basic ${Buffer.from(`${login.trim()}:${password.trim()}`).toString("base64")}`;
 
     const res = await fetch("https://api.dataforseo.com/v3/appendix/user_data", {
       method: "GET",
@@ -201,21 +207,22 @@ export async function testDataForSeo(login: string, password?: string): Promise<
 
     const latencyMs = Date.now() - start;
 
-    if (res.ok) {
-      const data = await res.json().catch(() => ({}));
-      const resultObj = data.tasks?.[0]?.result?.[0];
-      const money = resultObj?.money ?? "0";
+    const data = await res.json().catch(() => ({}));
+    const task = data.tasks?.[0];
+    if (res.ok && data.status_code === 20000 && task?.status_code === 20000) {
+      const resultObj = task.result?.[0];
+      const balance = resultObj?.money?.balance;
       return {
         success: true,
-        message: `DataForSEO connected. Account: ${resultObj?.login ?? login}, Balance: $${money}`,
+        message: `DataForSEO connected. Account: ${resultObj?.login ?? login}${typeof balance === "number" ? `, Balance: $${balance.toFixed(2)}` : ""}`,
         latencyMs,
-        details: { balance: money },
+        details: { ...(typeof balance === "number" ? { balance } : {}) },
       };
     }
 
     return {
       success: false,
-      message: `DataForSEO error: HTTP ${res.status} Unauthorized.`,
+      message: `DataForSEO error: ${task?.status_message || data.status_message || `HTTP ${res.status} ${res.statusText}`}`,
       latencyMs,
     };
   } catch (err) {

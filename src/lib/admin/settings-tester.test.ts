@@ -110,12 +110,16 @@ describe("Settings Tester", () => {
     it("tests DataForSEO credentials success", async () => {
       globalThis.fetch = vi.fn().mockResolvedValue(
         createMockResponse({
+          status_code: 20000,
+          status_message: "Ok.",
           tasks: [
             {
+              status_code: 20000,
+              status_message: "Ok.",
               result: [
                 {
                   login: "seo_user@example.com",
-                  money: "48.50",
+                  money: { balance: 48.5 },
                 },
               ],
             },
@@ -126,6 +130,18 @@ describe("Settings Tester", () => {
       const result = await testDataForSeo("seo_user@example.com", "secretpass");
       expect(result.success).toBe(true);
       expect(result.message).toContain("$48.50");
+    });
+
+    it("reports DataForSEO API-level credential errors even when HTTP is 200", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(createMockResponse({
+        status_code: 40100,
+        status_message: "Authorization failed.",
+        tasks: [],
+      }));
+
+      const result = await testDataForSeo("seo_user@example.com", "wrong-password");
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("Authorization failed");
     });
 
     it("validates Google OAuth client ID format before request", async () => {
