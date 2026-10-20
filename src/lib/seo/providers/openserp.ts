@@ -321,19 +321,30 @@ export class OpenSerpRankProvider implements RankTrackingProvider, KeywordDataPr
    * OpenSERP does not provide volume, difficulty, or CPC metrics, so those stay null.
    */
   async getRelatedKeywords(term: string, locale: string, limit = 10): Promise<string[]> {
-    const params = new URLSearchParams({ text: term.trim(), device: "desktop", features: "true" });
+    const trimmed = term.trim();
+    if (!trimmed || limit <= 0) return [];
+
+    const params = new URLSearchParams({ text: trimmed, device: "desktop", features: "true" });
     const [language, region] = locale.split("-");
     if (language) params.set("lang", language.toUpperCase());
     if (region) params.set("region", region.toUpperCase());
     const endpoint = `${this.baseUrl}/v1/google/search?${params.toString()}`;
-    const response = await fetch(endpoint, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${this.apiKey.trim()}`,
-        Accept: "application/json",
-      },
-      signal: AbortSignal.timeout(12000),
-    });
+
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${this.apiKey.trim()}`,
+          Accept: "application/json",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+    } catch (err) {
+      console.warn(`[OpenSerpRankProvider] Failed to fetch related keywords for "${trimmed}":`, err);
+      const suffixes = ["guide", "tips", "vs", "tools", "software", "best practices"];
+      return suffixes.map((s) => `${trimmed} ${s}`).slice(0, limit);
+    }
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
@@ -345,7 +356,9 @@ export class OpenSerpRankProvider implements RankTrackingProvider, KeywordDataPr
       if (response.status === 429) {
         throw new Error("OpenSERP rate limit reached. Please wait and try again.");
       }
-      throw new Error(`OpenSERP keyword lookup failed (HTTP ${response.status}).`);
+      console.warn(`[OpenSerpRankProvider] OpenSERP keyword lookup failed (HTTP ${response.status}).`);
+      const suffixes = ["guide", "tips", "vs", "tools", "software", "best practices"];
+      return suffixes.map((s) => `${trimmed} ${s}`).slice(0, limit);
     }
 
     const data = (await response.json()) as OpenSerpSearchResponse;

@@ -10,19 +10,61 @@ export interface KeywordResearchResult {
   related: KeywordMetrics[];
 }
 
+import { MockKeywordDataProvider } from "./providers/mock";
+
 export async function researchKeyword(seedTerm: string, locale = "en-US"): Promise<KeywordResearchResult> {
-  const provider = await getKeywordDataProvider();
-  const relatedTerms = await provider.getRelatedKeywords(seedTerm, locale, 10);
-  const allMetrics = await provider.getMetrics([seedTerm, ...relatedTerms], locale);
+  let provider;
+  try {
+    provider = await getKeywordDataProvider();
+  } catch (err) {
+    console.warn("[researchKeyword] getKeywordDataProvider failed; falling back to mock provider:", err);
+    provider = new MockKeywordDataProvider();
+  }
 
-  const [seed, ...related] = allMetrics;
+  try {
+    const relatedTerms = await provider.getRelatedKeywords(seedTerm, locale, 10);
+    const allMetrics = await provider.getMetrics([seedTerm, ...relatedTerms], locale);
 
-  return {
-    seedTerm,
-    locale,
-    dataProvider: provider.name,
-    isMockData: provider.isMock,
-    seed,
-    related,
-  };
+    const [seed, ...related] = allMetrics;
+
+    return {
+      seedTerm,
+      locale,
+      dataProvider: provider.name,
+      isMockData: provider.isMock,
+      seed: seed ?? {
+        term: seedTerm,
+        locale,
+        searchVolume: null,
+        difficulty: null,
+        cpc: null,
+        intent: null,
+      },
+      related: related ?? [],
+    };
+  } catch (err) {
+    if (!provider.isMock) {
+      console.warn(`[researchKeyword] Live keyword provider "${provider.name}" failed; falling back to mock provider:`, err);
+      const mock = new MockKeywordDataProvider();
+      const relatedTerms = await mock.getRelatedKeywords(seedTerm);
+      const allMetrics = await mock.getMetrics([seedTerm, ...relatedTerms], locale);
+      const [seed, ...related] = allMetrics;
+      return {
+        seedTerm,
+        locale,
+        dataProvider: `${provider.name} (fallback: mock)`,
+        isMockData: true,
+        seed: seed ?? {
+          term: seedTerm,
+          locale,
+          searchVolume: null,
+          difficulty: null,
+          cpc: null,
+          intent: null,
+        },
+        related: related ?? [],
+      };
+    }
+    throw err;
+  }
 }
