@@ -127,9 +127,13 @@ export default function KeywordResearchPage() {
           title="Results"
           description={
             result?.isMockData
-              ? "Showing mock data — no keyword data provider is connected yet."
+              ? result.providerError
+                ? `Live provider (${result.dataProvider.replace(" (fallback: mock)", "")}) error: "${result.providerError}". Showing simulated data.`
+                : result.dataProvider?.includes("fallback")
+                  ? `Live provider (${result.dataProvider.replace(" (fallback: mock)", "")}) timed out or failed. Showing simulated data.`
+                  : "Showing simulated mock data — no keyword data provider is connected yet."
               : result?.dataProvider === "dataforseo"
-                ? "Live keyword suggestions and search metrics from DataForSEO. Search intent is not included in this provider response."
+                ? "Live keyword suggestions, search volume, difficulty, and CPC from DataForSEO."
                 : result
                   ? result.related.length === 0
                     ? "OpenSERP returned no related-search features for this query. Try another seed or use AI keyword ideas. Connect DataForSEO for search metrics."

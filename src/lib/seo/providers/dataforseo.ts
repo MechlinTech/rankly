@@ -1,6 +1,7 @@
 import type { KeywordDataProvider, KeywordMetrics } from "./types";
 
-const API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/keyword_suggestions/live";
+const API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live";
+const LEGACY_API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/keyword_suggestions/live";
 const LOCATION_CODES: Record<string, number> = {
   US: 2840, GB: 2826, IN: 2356, CA: 2124, AU: 2036, DE: 2276, FR: 2250,
   ES: 2724, IT: 2380, BR: 2076, JP: 2392, NL: 2528, SG: 2702, AE: 2784,
@@ -10,6 +11,7 @@ interface DataForSeoKeyword {
   keyword?: string;
   keyword_info?: { search_volume?: number | null; cpc?: number | null } | null;
   keyword_properties?: { keyword_difficulty?: number | null } | null;
+  search_intent_info?: { main_intent?: string | null } | null;
 }
 
 interface DataForSeoResponse {
@@ -19,22 +21,33 @@ interface DataForSeoResponse {
     status_code?: number;
     status_message?: string;
     result?: Array<{
-      seed_keyword_data?: DataForSeoKeyword[] | null;
+      seed_keyword_data?: DataForSeoKeyword | DataForSeoKeyword[] | null;
       items?: DataForSeoKeyword[] | null;
     }> | null;
   }>;
 }
 
-function localeParts(locale: string): { languageCode?: string; locationCode?: number } {
-  const [language, region] = locale.split("-");
+function localeParts(locale: string): { languageCode: string; locationCode: number } {
+  const [language, region] = (locale || "en-US").split("-");
+  const regionUpper = region?.toUpperCase();
+  const locationCode = regionUpper && LOCATION_CODES[regionUpper] ? LOCATION_CODES[regionUpper] : LOCATION_CODES.US;
   return {
-    languageCode: language?.toLowerCase() || undefined,
-    locationCode: region ? LOCATION_CODES[region.toUpperCase()] : undefined,
+    languageCode: language?.toLowerCase() || "en",
+    locationCode,
   };
 }
 
 function finiteNumber(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseIntent(raw: string | null | undefined): KeywordMetrics["intent"] {
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+  if (lower === "informational" || lower === "navigational" || lower === "commercial" || lower === "transactional") {
+    return lower;
+  }
+  return null;
 }
 
 export class DataForSeoKeywordProvider implements KeywordDataProvider {
@@ -50,26 +63,52 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
 
   async getRelatedKeywords(term: string, locale: string, limit = 10): Promise<string[]> {
     const keyword = term.trim();
-    if (keyword.length < 3 || limit <= 0) return [];
+    if (keyword.length < 2 || limit <= 0) return [];
 
     const { languageCode, locationCode } = localeParts(locale);
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${this.login.trim()}:${this.password.trim()}`).toString("base64")}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify([{
-        keyword,
-        ...(languageCode ? { language_code: languageCode } : {}),
-        ...(locationCode ? { location_code: locationCode } : {}),
-        include_seed_keyword: true,
-        exact_match: false,
-        limit: Math.min(limit, 100),
-      }]),
-      signal: AbortSignal.timeout(20000),
-    });
+    const authHeader = `Basic ${Buffer.from(`${this.login.trim()}:${this.password.trim()}`).toString("base64")}`;
+    const requestBody = JSON.stringify([{
+      keyword,
+      language_code: languageCode,
+      location_code: locationCode,
+      include_seed_keyword: true,
+      exact_match: false,
+      limit: Math.min(limit, 100),
+    }]);
+
+    let response: Response;
+    try {
+      response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: requestBody,
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (response.status === 404) {
+        response = await fetch(LEGACY_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: authHeader,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: requestBody,
+          signal: AbortSignal.timeout(20000),
+        });
+      }
+    } catch (fetchErr) {
+      const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+      throw new Error(
+        isTimeout
+          ? "DataForSEO request timed out after 20 seconds."
+          : `DataForSEO connection failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`DataForSEO keyword lookup failed (HTTP ${response.status}). Check the DataForSEO credentials and account balance.`);
@@ -89,7 +128,13 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
     }
 
     const data = task.result?.[0];
-    const records = [...(data?.seed_keyword_data ?? []), ...(data?.items ?? [])];
+    const seedRecords: DataForSeoKeyword[] = Array.isArray(data?.seed_keyword_data)
+      ? data.seed_keyword_data
+      : data?.seed_keyword_data
+        ? [data.seed_keyword_data]
+        : [];
+    const itemRecords: DataForSeoKeyword[] = Array.isArray(data?.items) ? data.items : [];
+    const records = [...seedRecords, ...itemRecords];
     const seen = new Set<string>();
     const related: string[] = [];
 
@@ -105,7 +150,7 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
         searchVolume: finiteNumber(record.keyword_info?.search_volume),
         difficulty: finiteNumber(record.keyword_properties?.keyword_difficulty),
         cpc: finiteNumber(record.keyword_info?.cpc),
-        intent: null,
+        intent: parseIntent(record.search_intent_info?.main_intent),
       });
       if (key !== keyword.toLocaleLowerCase() && related.length < limit) related.push(candidate);
     }
