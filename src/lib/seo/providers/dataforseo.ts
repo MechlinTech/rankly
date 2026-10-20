@@ -10,6 +10,7 @@ interface DataForSeoKeyword {
   keyword?: string;
   keyword_info?: { search_volume?: number | null; cpc?: number | null } | null;
   keyword_properties?: { keyword_difficulty?: number | null } | null;
+  search_intent_info?: { main_intent?: string | null } | null;
 }
 
 interface DataForSeoResponse {
@@ -19,7 +20,7 @@ interface DataForSeoResponse {
     status_code?: number;
     status_message?: string;
     result?: Array<{
-      seed_keyword_data?: DataForSeoKeyword[] | null;
+      seed_keyword_data?: DataForSeoKeyword | DataForSeoKeyword[] | null;
       items?: DataForSeoKeyword[] | null;
     }> | null;
   }>;
@@ -35,6 +36,15 @@ function localeParts(locale: string): { languageCode?: string; locationCode?: nu
 
 function finiteNumber(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseIntent(raw: string | null | undefined): KeywordMetrics["intent"] {
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+  if (lower === "informational" || lower === "navigational" || lower === "commercial" || lower === "transactional") {
+    return lower;
+  }
+  return null;
 }
 
 export class DataForSeoKeywordProvider implements KeywordDataProvider {
@@ -89,7 +99,13 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
     }
 
     const data = task.result?.[0];
-    const records = [...(data?.seed_keyword_data ?? []), ...(data?.items ?? [])];
+    const seedRecords: DataForSeoKeyword[] = Array.isArray(data?.seed_keyword_data)
+      ? data.seed_keyword_data
+      : data?.seed_keyword_data
+        ? [data.seed_keyword_data]
+        : [];
+    const itemRecords: DataForSeoKeyword[] = Array.isArray(data?.items) ? data.items : [];
+    const records = [...seedRecords, ...itemRecords];
     const seen = new Set<string>();
     const related: string[] = [];
 
@@ -105,7 +121,7 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
         searchVolume: finiteNumber(record.keyword_info?.search_volume),
         difficulty: finiteNumber(record.keyword_properties?.keyword_difficulty),
         cpc: finiteNumber(record.keyword_info?.cpc),
-        intent: null,
+        intent: parseIntent(record.search_intent_info?.main_intent),
       });
       if (key !== keyword.toLocaleLowerCase() && related.length < limit) related.push(candidate);
     }
