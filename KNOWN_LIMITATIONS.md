@@ -16,9 +16,9 @@ Honest inventory of what is real vs. simulated, as of this build. Nothing below 
 ## SEO engine
 
 - **Site auditor: real.** Crawls actual pages via `fetch`, parses real HTML with `cheerio`. Verified against `example.com`. Results now persist to `SiteAuditRun`/`SiteAuditIssue`, scoped to the authenticated tenant's project.
-- **Keyword metrics (volume/difficulty/CPC): mocked.** No paid data provider (DataForSEO, Ahrefs API, Google Keyword Planner, etc.) is connected. `src/lib/seo/providers/mock.ts` returns deterministic fake numbers. Swapping to real data requires: an account with a provider, its credentials in `.env`, and implementing the corresponding adapter (the factory in `providers/index.ts` will throw a clear error if credentials are set but the adapter isn't implemented — it will never silently return fake data as if real). Results persist to `Keyword` rows, scoped to the tenant's general project.
-- **Rank tracking: mocked**, same reasoning — needs a SERP data provider (SerpApi, DataForSEO SERP API, etc.). Results persist to `RankSnapshot` rows.
-- **AI-search visibility (AI Overviews / ChatGPT Search / Perplexity citations): mocked.** No provider currently offers a clean API for this; would likely require a custom scraping/monitoring pipeline, which has real ToS and reliability risk to design carefully before building. Not persisted yet (no UI calls this provider).
+- **Keyword metrics (volume/difficulty/CPC): unavailable with OpenSERP.** When `OPENSERP_API_KEY` is configured, Keyword Research uses live related-search and People Also Ask results; OpenSERP does not return volume, difficulty, or CPC, so those values are null. Without OpenSERP, related terms and metrics come from deterministic mock data. A DataForSEO keyword adapter is not implemented yet. Results persist to `Keyword` rows, scoped to the tenant's general project. AI-generated keyword ideas are available separately, but are not persisted.
+- **Rank tracking: live through OpenSERP when configured; otherwise mocked.** Results persist to `RankSnapshot` rows.
+- **AI-search visibility (AI Overviews / ChatGPT Search / Perplexity citations): mocked.** No answer-engine visibility provider or customer-facing visibility page is wired up. The configured LLM provider powers AI recommendations on Site Audit and AI keyword ideas on Keyword Research. These features return AI-generated suggestions and do not measure rankings or citations in answer engines.
 
 ## Auth & tenancy — real, working
 
