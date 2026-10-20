@@ -77,6 +77,7 @@ export function AdminSettingsView() {
   const [aiStats, setAiStats] = useState<{ total: number; active: number }>({ total: 0, active: 0 });
   const [categoryFilter, setCategoryFilter] = useState<string>(() => resolveCategoryFromUrlOrStorage());
   const [loading, setLoading] = useState(true);
+  const [settingsLoadError, setSettingsLoadError] = useState<string | null>(null);
   const [cardStates, setCardStates] = useState<Record<string, IntegrationState>>({});
   const [testingAll, setTestingAll] = useState(false);
   const [globalBanner, setGlobalBanner] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -133,12 +134,17 @@ export function AdminSettingsView() {
     async function fetchSettings() {
       try {
         const res = await fetch("/api/admin/settings");
-        if (res.ok && active) {
-          const data = await res.json();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(typeof data.error === "string" ? data.error : `Settings could not be loaded (${res.status}).`);
+        }
+        if (!Array.isArray(data.integrations)) {
+          throw new Error("The settings service returned an invalid integrations list.");
+        }
+        if (active) {
+          setSettingsLoadError(null);
           setIntegrations(data.integrations);
-          if (data.aiStats) {
-            setAiStats(data.aiStats);
-          }
+          if (data.aiStats) setAiStats(data.aiStats);
 
           // Initialize state for each card
           const initialStates: Record<string, IntegrationState> = {};
@@ -154,8 +160,10 @@ export function AdminSettingsView() {
           }
           setCardStates(initialStates);
         }
-      } catch {
-        // ignore
+      } catch (error) {
+        if (active) {
+          setSettingsLoadError(error instanceof Error ? error.message : "Unable to load API integration settings.");
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -351,6 +359,16 @@ export function AdminSettingsView() {
       <div className="flex min-h-[300px] flex-col items-center justify-center gap-3">
         <Spinner />
         <p className="text-xs text-slate-400">Loading system integration settings…</p>
+      </div>
+    );
+  }
+
+  if (settingsLoadError) {
+    return (
+      <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center dark:border-rose-900 dark:bg-rose-950/30">
+        <p className="text-sm font-semibold text-rose-800 dark:text-rose-300">API integration settings could not be loaded</p>
+        <p role="alert" className="max-w-xl text-xs text-rose-700 dark:text-rose-400">{settingsLoadError}</p>
+        <Button variant="secondary" size="sm" onClick={reloadSettings}>Retry</Button>
       </div>
     );
   }

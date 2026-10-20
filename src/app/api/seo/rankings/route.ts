@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const { getKeywordDataProvider } = await import("@/lib/seo/providers");
-    const keywordProvider = getKeywordDataProvider();
+    const keywordProvider = await getKeywordDataProvider();
 
     const [result, metricsList, project] = await Promise.all([
       checkRankings(domain, terms, engine, device),
