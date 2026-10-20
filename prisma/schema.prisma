@@ -367,6 +367,14 @@ model AiProviderConfig {
   @@index([healthStatus])
 }
 
+model IntegrationCredential {
+  name          String   @id
+  encryptedValue String
+  maskedValue   String
+  updatedAt     DateTime @updatedAt
+  updatedById   String?
+}
+
 model AiActivityLog {
   id               String   @id @default(cuid())
   tenantId         String?  // null when invoked in system/admin diagnostic context

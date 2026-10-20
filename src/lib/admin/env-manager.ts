@@ -56,8 +56,5 @@ export async function persistApiKeys(updates: Record<string, string>): Promise<v
   }
 
   // 2. Persist to disk files
-  await Promise.all([
-    updateEnvFile(envPath, updates).catch(() => {}),
-    updateEnvFile(envDevPath, updates).catch(() => {}),
-  ]);
+  await Promise.all([updateEnvFile(envPath, updates), updateEnvFile(envDevPath, updates)]);
 }

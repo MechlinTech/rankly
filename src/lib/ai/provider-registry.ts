@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { decryptSecret } from "@/lib/crypto/encryption";
 import { createAiAdapter } from "./provider-factory";
 import { recordAiActivity } from "./usage";
+import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 import type {
   AiProviderAdapter,
   AiProviderType,
@@ -132,7 +133,7 @@ export async function resolvePrimaryProvider(options: ResolveOptions = {}): Prom
   }
 
   // 5. Check legacy ANTHROPIC_API_KEY environment variable for backward compatibility
-  const legacyAnthropic = process.env.ANTHROPIC_API_KEY?.trim();
+  const legacyAnthropic = (await getIntegrationCredential("ANTHROPIC_API_KEY"))?.trim();
   if (legacyAnthropic) {
     const adapter = createAiAdapter({
       providerType: "ANTHROPIC",

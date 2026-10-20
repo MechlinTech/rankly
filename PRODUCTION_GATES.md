@@ -1,6 +1,6 @@
 # Production Gates
 
-Status as of 2026-09-17. A gate is only checked when independently verifiable, not just "code exists."
+Status as of 2026-10-20. A gate is only checked when independently verifiable, not just "code exists."
 
 ## Development ready
 - [x] Project scaffolded (Next.js + TypeScript + Tailwind + Prisma)
@@ -18,7 +18,7 @@ Status as of 2026-09-17. A gate is only checked when independently verifiable, n
 - [~] PWA — manifest, icons, offline page, and service worker file all exist and serve correctly (200s, correct content types, manifest linked in `<head>`). Live service worker registration (install-to-homescreen, offline fallback actually working) is UNVERIFIED — it failed in this session's sandboxed preview browser, most likely due to the automation tool's own iframe/sandbox restrictions rather than a code defect, but this needs confirmation on a real device/browser before trusting it.
 
 ## QA ready
-- [x] Automated test suite — `npm test` (39 unit tests), `npm run test:integration` (11 tests, real server + real Postgres over HTTP), and `npm run test:e2e` (27 Playwright tests, real Chromium browser + real server + real Postgres, including an axe-core WCAG 2.2 AA accessibility scan) — all passing. `.github/workflows/ci.yml` runs the unit + integration layers (real `postgres:16-alpine` service container + `prisma migrate deploy`) — E2E is not in CI yet. **Neither CI job has actually run in GitHub yet.**
+- [x] Automated test suite — latest local `npm test` equivalent passed (173 unit tests); prior local runs passed `npm run test:integration` (11 tests, real server + real Postgres over HTTP) and `npm run test:e2e` (27 Playwright tests, real Chromium browser + real server + real Postgres, including an axe-core WCAG 2.2 AA accessibility scan). `.github/workflows/ci.yml` runs the unit + integration layers (real `postgres:16-alpine` service container + `prisma migrate deploy`) — E2E is not in CI yet. **Neither CI job has actually run in GitHub yet.**
 - [x] Fixed a real `npm ci` bug found while wiring this up: `@types/node@^20` conflicted with `vitest@5`'s peer requirement, so a clean install (no local `--legacy-peer-deps` override) would have failed on CI's very first run — bumped to `@types/node@^22` to match the Node 22 this app already targets elsewhere
 - [x] Fixed a real dev-mode UI bug found by the E2E suite: Next.js's dev route indicator was intercepting real clicks on the dashboard's Log out button, confirmed via manual coordinate-vs-JS click reproduction in a live browser, not just a Playwright quirk — see KNOWN_LIMITATIONS.md
 - [x] Fixed a real WCAG violation found in the same pass: labels weren't programmatically associated with their inputs across 8 forms (`htmlFor`/`id` missing) — fixed everywhere

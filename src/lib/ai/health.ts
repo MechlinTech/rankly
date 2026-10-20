@@ -8,6 +8,7 @@ import {
   DEFAULT_MODELS,
 } from "./types";
 import { sanitizeErrorMessage, QuotaExhaustedError, RateLimitError } from "./errors";
+import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 
 // Freshness thresholds
 export const HEALTH_FRESH_MS = 15 * 60 * 1000; // 15 minutes
@@ -291,7 +292,7 @@ export async function getOverallAiHealth(): Promise<OverallHealthStatus> {
 
   if (configs.length === 0) {
     // Check if legacy ANTHROPIC_API_KEY is configured in env
-    const legacyAnthropic = process.env.ANTHROPIC_API_KEY?.trim();
+    const legacyAnthropic = (await getIntegrationCredential("ANTHROPIC_API_KEY"))?.trim();
     if (legacyAnthropic) {
       return {
         status: "UNKNOWN",

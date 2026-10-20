@@ -52,6 +52,7 @@ describe("AI Provider Registry & Fallback Orchestration", () => {
   beforeEach(() => {
     process.env.APP_ENCRYPTION_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
     delete process.env.ANTHROPIC_API_KEY;
+    vi.spyOn(prisma.integrationCredential, "findUnique").mockResolvedValue(null);
   });
 
   afterEach(() => {
