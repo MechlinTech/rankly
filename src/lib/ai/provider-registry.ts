@@ -236,7 +236,7 @@ export async function executeAiCompletion(
     clearTimeout(deadlineTimer);
 
     // Persist usage
-    void recordAiActivity({
+    await recordAiActivity({
       tenantId: req.tenantId,
       userId: req.userId,
       feature: req.feature ?? "general",
@@ -261,7 +261,7 @@ export async function executeAiCompletion(
     // Check if fallback is permitted and eligible
     if (!allowFallback || !isEligibleForFallback(primaryErr)) {
       clearTimeout(deadlineTimer);
-      void recordAiActivity({
+      await recordAiActivity({
         tenantId: req.tenantId,
         userId: req.userId,
         feature: req.feature ?? "general",
@@ -281,6 +281,19 @@ export async function executeAiCompletion(
     const fallback = await resolveFallbackProvider(primary.configId);
     if (!fallback) {
       clearTimeout(deadlineTimer);
+      await recordAiActivity({
+        tenantId: req.tenantId,
+        userId: req.userId,
+        feature: req.feature ?? "general",
+        provider: primary.providerType,
+        model: primary.model,
+        promptTokens: 0,
+        completionTokens: 0,
+        durationMs: Date.now() - start,
+        isFallback: false,
+        status: "ERROR",
+        errorMessage: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+      });
       throw primaryErr;
     }
 
@@ -306,7 +319,7 @@ export async function executeAiCompletion(
         },
       };
 
-      void recordAiActivity({
+      await recordAiActivity({
         tenantId: req.tenantId,
         userId: req.userId,
         feature: req.feature ?? "general",
@@ -324,7 +337,7 @@ export async function executeAiCompletion(
     } catch (fallbackErr: unknown) {
       clearTimeout(deadlineTimer);
 
-      void recordAiActivity({
+      await recordAiActivity({
         tenantId: req.tenantId,
         userId: req.userId,
         feature: req.feature ?? "general",
