@@ -13,6 +13,7 @@ export interface IntegrationConfig {
   description: string;
   envKey: string;
   aliasKey?: string;
+  keyLabel?: string;
   extraKey?: string;
   extraLabel?: string;
   isConfigured: boolean;
@@ -101,6 +102,7 @@ export async function GET() {
       category: "Search & SEO",
       description: "Provides live keyword suggestions, search volume, cost-per-click, and difficulty in /keywords. Provider charges may apply.",
       envKey: "DATAFORSEO_LOGIN",
+      keyLabel: "API Login (Email)",
       extraKey: "DATAFORSEO_PASSWORD",
       extraLabel: "API Password",
       isConfigured: Boolean(dataforseoLogin?.trim() && dataforseoPass?.trim()),
