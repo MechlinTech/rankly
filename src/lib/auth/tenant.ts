@@ -14,6 +14,14 @@ export function roleAtLeast(role: Role, minimum: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[minimum];
 }
 
+export async function getActiveMembershipForUser(userId: string) {
+  return prisma.membership.findFirst({
+    where: { userId, isActive: true },
+    include: { tenant: true },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
 /**
  * Returns the authenticated user's first active tenant membership.
  * v1 simplification: a user belongs to one primary tenant workspace.
@@ -23,12 +31,7 @@ export async function getCurrentTenantContext() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const membership = await prisma.membership.findFirst({
-    where: { userId: user.id, isActive: true },
-    include: { tenant: true },
-    orderBy: { createdAt: "asc" },
-  });
-
+  const membership = await getActiveMembershipForUser(user.id);
   if (!membership) return null;
 
   return { user, tenant: membership.tenant, role: membership.role, membership };

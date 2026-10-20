@@ -10,7 +10,10 @@ export function MarketingNav() {
 
   const check = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await fetch("/api/auth/me", {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
       const data = await res.json();
       setIsLoggedIn(!!data.user);
       setIsSuperAdmin(Boolean(data.isSuperAdmin ?? data.user?.isSuperAdmin));
@@ -44,7 +47,17 @@ export function MarketingNav() {
         </div>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          {isLoggedIn ? (
+          {isLoggedIn === null ? (
+            <>
+              <span className="sr-only" role="status">
+                Checking session…
+              </span>
+              <span
+                className="h-9 w-24 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800"
+                aria-hidden="true"
+              />
+            </>
+          ) : isLoggedIn ? (
             <Link
               href={isSuperAdmin ? "/admin" : "/keywords"}
               className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"

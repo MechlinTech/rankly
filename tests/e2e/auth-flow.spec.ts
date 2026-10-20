@@ -99,6 +99,12 @@ test.describe("auth flow (real browser)", () => {
 
     await page.goto("/keywords");
     await page.waitForURL("**/login**");
+
+    // The session cookie is gone, so the public homepage is reachable again
+    // instead of being redirected to the dashboard.
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Start free" })).toBeVisible();
   });
 
   test("an unverified account shows the verify-email banner, and resend works", async ({ page }) => {
@@ -158,13 +164,61 @@ test.describe("auth flow (real browser)", () => {
     await page.waitForURL("**/login**");
   });
 
-  test("the marketing homepage nav switches to Dashboard once logged in", async ({ page }) => {
-    await page.goto("/");
-    // "Start free" appears in the nav AND in several page CTAs - scope to the nav specifically.
-    await expect(page.getByRole("navigation").getByRole("link", { name: "Start free" })).toBeVisible();
+  test("an existing session is restored across refresh, tab reopen, and browser reopen", async ({
+    page,
+    context,
+    browser,
+  }) => {
+    const user = await signUpViaUI(page);
 
-    await signUpViaUI(page);
+    // Refreshing keeps the user in the dashboard.
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Keyword Research" })).toBeVisible();
+
+    // Closing and reopening a tab must skip the public landing page.
+    await page.close();
+    const reopenedTab = await context.newPage();
+    await reopenedTab.goto("/");
+    await reopenedTab.waitForURL("**/keywords", { waitUntil: "commit" });
+    await expect(reopenedTab.getByRole("heading", { name: "Keyword Research" })).toBeVisible();
+    await expect(reopenedTab.getByRole("link", { name: "Start free" })).toHaveCount(0);
+
+    // Loading /login directly with an existing session also skips the form.
+    await reopenedTab.goto("/login");
+    await reopenedTab.waitForURL("**/keywords", { waitUntil: "commit" });
+
+    // A new browser context with the persisted cookie represents reopening the
+    // browser later; the same workspace session must be restored.
+    const storageState = await context.storageState();
+    const reopenedBrowser = await browser.newContext({ storageState });
+    const reopenedBrowserPage = await reopenedBrowser.newPage();
+    await reopenedBrowserPage.goto("/");
+    await reopenedBrowserPage.waitForURL("**/keywords", { waitUntil: "commit" });
+    await expect(reopenedBrowserPage.getByRole("heading", { name: "Keyword Research" })).toBeVisible();
+    await expect(reopenedBrowserPage.getByText(user.companyName).first()).toBeVisible();
+    await expect(reopenedBrowserPage.getByRole("link", { name: "Start free" })).toHaveCount(0);
+
+    await reopenedBrowser.close();
+  });
+
+  test("an expired or revoked session cookie is sent to login instead of the landing page", async ({
+    page,
+    context,
+  }) => {
+    await context.addCookies([
+      { name: "rankly_session", value: "expired-session-token", domain: "localhost", path: "/" },
+    ]);
+
     await page.goto("/");
-    await expect(page.getByRole("navigation").getByRole("link", { name: "Dashboard" })).toBeVisible();
+    await page.waitForURL("**/login**");
+    await expect(page.getByRole("heading", { name: "Log in to Rankly" })).toBeVisible();
+
+    // The auth probe clears the dead cookie, after which "/" is public again.
+    await expect
+      .poll(async () => (await context.cookies()).some((cookie) => cookie.name === "rankly_session"))
+      .toBe(false);
+    await page.goto("/");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole("navigation").getByRole("link", { name: "Start free" })).toBeVisible();
   });
 });

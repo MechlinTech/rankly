@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PricingCards } from "@/components/pricing-cards";
+import { getSessionRestoreState } from "@/lib/auth/restore";
 
 const FEATURES = [
   {
@@ -53,7 +55,21 @@ const FAQS = [
   },
 ];
 
-export default function MarketingHomePage() {
+export default async function MarketingHomePage() {
+  // Resolve the existing session before any public markup is streamed. A valid
+  // session goes straight to its workspace; a stale cookie goes to login so
+  // the app can clear it and re-authenticate.
+  const session = await getSessionRestoreState();
+  if (session.status === "authenticated") {
+    redirect(session.destination);
+  }
+  if (session.status === "no-workspace") {
+    redirect("/login?error=no_workspace");
+  }
+  if (session.hadSessionCookie) {
+    redirect("/login?next=%2Fkeywords");
+  }
+
   return (
     <div>
       {/* Hero */}
