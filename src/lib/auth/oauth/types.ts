@@ -12,7 +12,7 @@ export interface OAuthUserInfo {
 
 export interface OAuthProviderAdapter {
   readonly name: "GOOGLE" | "MICROSOFT";
-  isConfigured(): boolean;
-  getAuthorizationUrl(state: string, redirectUri: string): string;
+  isConfigured(): Promise<boolean>;
+  getAuthorizationUrl(state: string, redirectUri: string): Promise<string>;
   exchangeCodeForUser(code: string, redirectUri: string): Promise<OAuthUserInfo>;
 }

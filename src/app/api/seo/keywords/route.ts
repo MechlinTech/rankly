@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { term, locale } = parsed.data;
+  try {
   const result = await researchKeyword(term, locale ?? "en-US");
   const project = await getOrCreateGeneralProject(ctx.tenant.id);
 
@@ -59,4 +60,9 @@ export async function POST(req: NextRequest) {
   );
 
   return NextResponse.json({ ...result, projectId: project.id });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Keyword research failed.";
+    console.error("Keyword research request failed.", error);
+    return NextResponse.json({ error: message }, { status: 502 });
+  }
 }

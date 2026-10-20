@@ -15,7 +15,7 @@ export async function checkRankings(
   engine = "google",
   device: "desktop" | "mobile" = "desktop"
 ): Promise<RankCheckResult> {
-  const provider = getRankTrackingProvider();
+  const provider = await getRankTrackingProvider();
   const results = await provider.getRankings(domain, terms, engine, device);
 
   return {
