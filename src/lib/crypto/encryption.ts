@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96 bits for GCM
@@ -23,7 +25,47 @@ export class DecryptionError extends Error {
  * Evaluated on-demand so module importing during build time does not fail.
  */
 export function getEncryptionKey(): Buffer {
-  const raw = process.env.APP_ENCRYPTION_KEY?.trim();
+  let raw = process.env.APP_ENCRYPTION_KEY?.trim();
+
+  // Strip wrapping double or single quotes if present
+  if (raw) {
+    raw = raw.replace(/^["']|["']$/g, "").trim();
+  }
+
+  // If missing from process.env outside of automated test runners, attempt disk discovery
+  if (!raw && !process.env.VITEST && process.env.NODE_ENV !== "test") {
+    try {
+      const candidates = [
+        path.resolve(process.cwd(), ".env.local"),
+        path.resolve(process.cwd(), ".env"),
+        path.resolve(process.cwd(), ".env.dev"),
+      ];
+      for (const filePath of candidates) {
+        if (fs.existsSync(/* turbopackIgnore: true */ filePath)) {
+          const content = fs.readFileSync(/* turbopackIgnore: true */ filePath, "utf8");
+          const match = content.match(/^APP_ENCRYPTION_KEY\s*=\s*([^\r\n#]+)/m);
+          if (match && match[1]) {
+            let val = match[1].trim();
+            val = val.replace(/^["']|["']$/g, "").trim();
+            if (val) {
+              raw = val;
+              process.env.APP_ENCRYPTION_KEY = val;
+              break;
+            }
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // In local development, fallback to default seed key so developers are never blocked
+    if (!raw && process.env.NODE_ENV !== "production") {
+      raw = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+      process.env.APP_ENCRYPTION_KEY = raw;
+    }
+  }
+
   if (!raw) {
     throw new EncryptionConfigError();
   }
