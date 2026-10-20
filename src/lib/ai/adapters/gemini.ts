@@ -167,11 +167,37 @@ export class GeminiAdapter implements AiProviderAdapter {
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
 
-    const durationMs = Date.now() - start;
+    let modelUsed = modelToUse;
+    let isFallback = false;
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      throw this.transformHttpError(res.status, errText, res.headers);
+      const isQuotaError = res.status === 429 && /quota|credit|billing|resource_exhausted/i.test(errText);
+      const isEligibleFallback = isQuotaError && !modelToUse.includes("flash-lite") && (req.allowFallback ?? true);
+
+      if (isEligibleFallback) {
+        try {
+          const fallbackModel = "gemini-3.5-flash-lite";
+          const remainingMs = Math.max(5000, timeoutMs - (Date.now() - start));
+          const fallbackRes = await fetch(`${GEMINI_BASE_URL}/models/${fallbackModel}:generateContent`, {
+            method: "POST",
+            headers: this.getHeaders(),
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(remainingMs),
+          });
+          if (fallbackRes.ok) {
+            res = fallbackRes;
+            modelUsed = fallbackModel;
+            isFallback = true;
+          }
+        } catch {
+          // Keep original response
+        }
+      }
+
+      if (!res.ok) {
+        throw this.transformHttpError(res.status, errText, res.headers);
+      }
     }
 
     interface GeminiResponsePayload {
@@ -193,7 +219,7 @@ export class GeminiAdapter implements AiProviderAdapter {
     } catch {
       throw new MalformedResponseError("Failed to parse JSON response from Gemini API.", {
         provider: "GEMINI",
-        model: modelToUse,
+        model: modelUsed,
       });
     }
 
@@ -204,7 +230,7 @@ export class GeminiAdapter implements AiProviderAdapter {
     if (typeof text !== "string") {
       throw new MalformedResponseError("Gemini response did not contain text content.", {
         provider: "GEMINI",
-        model: modelToUse,
+        model: modelUsed,
       });
     }
 
@@ -212,10 +238,12 @@ export class GeminiAdapter implements AiProviderAdapter {
     const completionTokens = Number(data.usageMetadata?.candidatesTokenCount) || 0;
     const totalTokens = Number(data.usageMetadata?.totalTokenCount) || promptTokens + completionTokens;
 
+    const durationMs = Date.now() - start;
+
     return {
       text,
       provider: "GEMINI",
-      model: modelToUse,
+      model: modelUsed,
       usage: {
         promptTokens,
         completionTokens,
@@ -223,7 +251,7 @@ export class GeminiAdapter implements AiProviderAdapter {
         estimatedCostUsd: null,
       },
       durationMs,
-      isFallback: false,
+      isFallback,
     };
   }
 
