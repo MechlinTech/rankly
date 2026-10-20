@@ -50,17 +50,7 @@ function AdminMainContent() {
     tabParam === "billing" ||
     tabParam === "auth";
 
-  const [activeTab, setActiveTab] = useState<"tenants" | "settings">(
-    isSettingsParam ? "settings" : "tenants"
-  );
-
-  useEffect(() => {
-    if (isSettingsParam) {
-      setActiveTab("settings");
-    } else if (!tabParam || tabParam === "tenants") {
-      setActiveTab("tenants");
-    }
-  }, [tabParam, isSettingsParam]);
+  const activeTab: "tenants" | "settings" = isSettingsParam ? "settings" : "tenants";
 
   const [data, setData] = useState<AdminData | null>(null);
   const [page, setPage] = useState(1);
@@ -85,7 +75,6 @@ function AdminMainContent() {
   }, [loadTenants]);
 
   function switchTab(tab: "tenants" | "settings") {
-    setActiveTab(tab);
     const url = tab === "settings" ? "/admin?tab=settings" : "/admin";
     router.replace(url, { scroll: false });
   }
