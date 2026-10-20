@@ -35,7 +35,7 @@ export default function KeywordResearchPage() {
         router.push("/login");
         return;
       }
-      setError("Couldn't fetch keyword data. Please try again.");
+      setError(err instanceof Error ? err.message : "Couldn't fetch keyword data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ export default function KeywordResearchPage() {
       <div>
         <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Keyword Research</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Find related search queries and AI-generated keyword ideas. Search metrics appear when a metrics provider is connected.
+          Find related queries with live search metrics. Connect DataForSEO in Admin Settings to retrieve volume, difficulty, and CPC.
         </p>
       </div>
 
@@ -128,9 +128,13 @@ export default function KeywordResearchPage() {
           description={
             result?.isMockData
               ? "Showing mock data — no keyword data provider is connected yet."
-              : result
-                ? "Related queries come from live SERP data. Search volume, difficulty, and CPC require a keyword metrics provider."
-                : undefined
+              : result?.dataProvider === "dataforseo"
+                ? "Live keyword suggestions and search metrics from DataForSEO. Search intent is not included in this provider response."
+                : result
+                  ? result.related.length === 0
+                    ? "OpenSERP returned no related-search features for this query. Try another seed or use AI keyword ideas. Connect DataForSEO for search metrics."
+                    : "Related queries come from live SERP data. Connect DataForSEO to add search volume, difficulty, and CPC."
+                  : undefined
           }
         />
         {!result && !loading && (

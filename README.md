@@ -4,7 +4,7 @@ A multi-tenant SEO / AI-search intelligence platform in the spirit of SEMrush an
 
 ## Stack
 
-- Next.js 15 (App Router) + TypeScript
+- Next.js 16 (App Router) + TypeScript
 - PostgreSQL + Prisma (7, using the `@prisma/adapter-pg` driver adapter)
 - Tailwind CSS
 - Deployment target: plain Docker (works on a physical server or any cloud VM — not AWS-locked)
@@ -15,7 +15,7 @@ A multi-tenant SEO / AI-search intelligence platform in the spirit of SEMrush an
 - SEO engine domain model: projects, keywords, rank snapshots, competitors, site audit runs/issues, AI-search visibility snapshots, AI usage log
 - **Real email/password auth**: signup, login, logout, bcrypt password hashing, opaque revocable sessions (DB-backed, httpOnly cookies). Signup creates a tenant + OWNER membership. Protected routes (`/keywords`, `/rankings`, `/audit`) require a valid session (`src/middleware.ts` + `src/lib/auth/`).
 - **Real, working site auditor** (`src/lib/seo/audit.ts`, `src/lib/seo/crawler`): same-origin crawler using `fetch` + `cheerio`, flags missing titles/meta/H1/canonical, thin content, slow responses, broken links, 4xx/5xx.
-- **Keyword research + rank tracking UI** (`/keywords`, `/rankings`): OpenSERP supplies related searches, People Also Ask queries, and live ranking data when configured. Volume, difficulty, and CPC require a separate keyword metrics provider; the DataForSEO adapter is not implemented yet. Mock data is clearly identified when no OpenSERP key is set.
+- **Keyword research + rank tracking UI** (`/keywords`, `/rankings`): OpenSERP supplies live ranking data and best-effort related searches/PAA when configured. DataForSEO supplies keyword suggestions, search volume, difficulty, and CPC when configured (provider charges may apply). Mock data is clearly identified when no live keyword provider is set.
 - **AI-assisted SEO features**: configured AI providers generate keyword ideas on `/keywords` and recommendations from completed crawls on `/audit`. These are suggestions, not live search metrics or answer-engine visibility measurements. AI requests use the shared provider registry, fallback handling, and usage logging.
 - SEO audits, keyword lookups, and rank tracking persist results to Postgres, scoped to the authenticated tenant's project. AI recommendations and AI keyword ideas are returned to the user but not saved as records.
 - **Team invitations + RBAC** (`/team`): owners/admins invite by email + role, manage roles, deactivate/remove members. Role checks are enforced server-side on every route, not just hidden in the UI. Invites attempt real email delivery (see below) and fall back to a manually shared link if that's not configured.

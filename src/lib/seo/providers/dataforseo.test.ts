@@ -1,0 +1,60 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { DataForSeoKeywordProvider } from "./dataforseo";
+
+describe("DataForSEO keyword provider", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("authenticates and maps live keyword suggestions and metrics", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status_code: 20000,
+        status_message: "Ok.",
+        tasks: [{
+          status_code: 20000,
+          status_message: "Ok.",
+          result: [{
+            seed_keyword_data: [{
+              keyword: "app development",
+              keyword_info: { search_volume: 1200, cpc: 2.5 },
+              keyword_properties: { keyword_difficulty: 42 },
+            }],
+            items: [{
+              keyword: "app development services",
+              keyword_info: { search_volume: 800, cpc: 3.25 },
+              keyword_properties: { keyword_difficulty: 51 },
+            }],
+          }],
+        }],
+      }),
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = new DataForSeoKeywordProvider(" seo@example.com ", " secret ");
+    const terms = await provider.getRelatedKeywords("app development", "en-US", 10);
+    const metrics = await provider.getMetrics(["app development", "app development services"], "en-US");
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("dataforseo_labs/keyword_suggestions/live");
+    expect(new Headers(request.headers).get("Authorization")).toBe(
+      `Basic ${Buffer.from("seo@example.com:secret").toString("base64")}`,
+    );
+    expect(JSON.parse(String(request.body))).toEqual([expect.objectContaining({
+      keyword: "app development",
+      language_code: "en",
+      location_code: 2840,
+      include_seed_keyword: true,
+    })]);
+    expect(terms).toEqual(["app development services"]);
+    expect(metrics).toEqual([
+      { term: "app development", locale: "en-US", searchVolume: 1200, difficulty: 42, cpc: 2.5, intent: null },
+      { term: "app development services", locale: "en-US", searchVolume: 800, difficulty: 51, cpc: 3.25, intent: null },
+    ]);
+  });
+});

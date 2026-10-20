@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/super-admin";
+import { getIntegrationCredential, getOpenSerpCredential } from "@/lib/admin/integration-credentials";
 import {
   testOpenSerp,
   testResend,
@@ -42,7 +43,8 @@ export async function POST(req: NextRequest) {
 
   switch (id) {
     case "openserp": {
-      const activeKey = key?.trim() || process.env.OPENSERP_API_KEY || process.env.SERP_API_KEY;
+      const { value: configuredKey } = await getOpenSerpCredential();
+      const activeKey = key?.trim() || configuredKey;
       if (!activeKey) {
         return NextResponse.json({
           success: false,
@@ -55,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     case "resend": {
-      const activeKey = key?.trim() || process.env.RESEND_API_KEY;
+      const activeKey = key?.trim() || (await getIntegrationCredential("RESEND_API_KEY"));
       if (!activeKey) {
         return NextResponse.json({
           success: false,
@@ -68,7 +70,7 @@ export async function POST(req: NextRequest) {
     }
 
     case "anthropic": {
-      const activeKey = key?.trim() || process.env.ANTHROPIC_API_KEY;
+      const activeKey = key?.trim() || (await getIntegrationCredential("ANTHROPIC_API_KEY"));
       if (!activeKey) {
         return NextResponse.json({
           success: false,
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     case "stripe": {
-      const activeKey = key?.trim() || process.env.STRIPE_SECRET_KEY;
+      const activeKey = key?.trim() || (await getIntegrationCredential("STRIPE_SECRET_KEY"));
       if (!activeKey) {
         return NextResponse.json({
           success: false,
@@ -94,12 +96,19 @@ export async function POST(req: NextRequest) {
     }
 
     case "dataforseo": {
-      const activeLogin = key?.trim() || process.env.DATAFORSEO_LOGIN;
-      const activePass = extra?.trim() || process.env.DATAFORSEO_PASSWORD;
+      const activeLogin = key?.trim() || (await getIntegrationCredential("DATAFORSEO_LOGIN"));
+      const activePass = extra?.trim() || (await getIntegrationCredential("DATAFORSEO_PASSWORD"));
       if (!activeLogin) {
         return NextResponse.json({
           success: false,
           message: "No DataForSEO login provided or configured.",
+          latencyMs: 0,
+        });
+      }
+      if (!activePass) {
+        return NextResponse.json({
+          success: false,
+          message: "Enter both the DataForSEO API login and password.",
           latencyMs: 0,
         });
       }
@@ -108,7 +117,7 @@ export async function POST(req: NextRequest) {
     }
 
     case "google_oauth": {
-      const activeClientId = key?.trim() || process.env.GOOGLE_CLIENT_ID;
+      const activeClientId = key?.trim() || (await getIntegrationCredential("GOOGLE_CLIENT_ID"));
       if (!activeClientId) {
         return NextResponse.json({
           success: false,
@@ -121,7 +130,7 @@ export async function POST(req: NextRequest) {
     }
 
     case "microsoft_oauth": {
-      const activeClientId = key?.trim() || process.env.MICROSOFT_CLIENT_ID;
+      const activeClientId = key?.trim() || (await getIntegrationCredential("MICROSOFT_CLIENT_ID"));
       if (!activeClientId) {
         return NextResponse.json({
           success: false,

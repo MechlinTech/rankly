@@ -12,7 +12,7 @@ const requestSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
+  if (!(await isStripeConfigured())) {
     return NextResponse.json({ error: "Billing is not configured on this deployment yet." }, { status: 501 });
   }
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const stripe = getStripeClient();
+  const stripe = await getStripeClient();
 
   let customerId = ctx.tenant.stripeCustomerId;
   if (!customerId) {

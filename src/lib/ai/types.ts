@@ -137,11 +137,13 @@ export const KNOWN_MODELS: Record<AiProviderType, ProviderModelOption[]> = {
     { id: "claude-haiku-5-5", name: "Claude Haiku 5.5", description: "Ultra-fast response latency & high efficiency" },
   ],
   GEMINI: [
-    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash", description: "High-speed, verified production model with massive context (Recommended)", recommended: true },
-    { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash Lite", description: "Ultra-low latency lightweight generation" },
-    { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", description: "Next-gen multimodal reasoning" },
-    { id: "gemini-4-argon", name: "Gemini 4 Argon", description: "Frontier deep reasoning & complex problem solving" },
-    { id: "gemini-omni-1.1-flash", name: "Gemini Omni 1.1 Flash", description: "Real-time conversational multimodal stream" },
+    { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash", description: "Current stable Flash model recommended for new projects", recommended: true },
+    { id: "gemini-3.6-flash", name: "Gemini 3.6 Flash", description: "Stable previous-generation Flash model" },
+    { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite", description: "Stable, cost-efficient model for high-throughput requests" },
+    { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite", description: "Stable lightweight model" },
+    { id: "gemini-3.5-flash", name: "Gemini 3.5 Flash (legacy)", description: "Legacy stable model; prefer Gemini 3.8 Flash for new configurations" },
+    { id: "gemini-4-argon", name: "Gemini 4 Argon", description: "Current flagship reasoning model; higher cost and latency" },
+    { id: "gemini-omni-1.1-flash", name: "Gemini Omni Flash", description: "Stable multimodal/video model" },
   ],
   XAI: [
     { id: "grok-2-latest", name: "Grok 2 Latest", description: "High-performance reasoning & real-time search (Recommended)", recommended: true },
@@ -158,7 +160,7 @@ export const KNOWN_MODELS: Record<AiProviderType, ProviderModelOption[]> = {
 export const DEFAULT_MODELS: Record<AiProviderType, string> = {
   OPENAI: "gpt-4o-mini",
   ANTHROPIC: "claude-3-7-sonnet-20250219",
-  GEMINI: "gemini-3.5-flash",
+  GEMINI: "gemini-3.8-flash",
   XAI: "grok-2-latest",
   OPENAI_COMPATIBLE: "deepseek-chat",
 };
