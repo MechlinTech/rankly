@@ -148,6 +148,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   const contactTitleId = useId();
   const noteInputId = useId();
   const taskInputId = useId();
+  const contactFormId = useId();
 
   const load = useCallback(async () => {
     try {
@@ -385,7 +386,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
         body: JSON.stringify({
           name: editName.trim(),
           domain: editDomain.trim() || undefined,
-          notes: editNotes.trim() || undefined,
+          notes: editNotes.trim() || null,
         }),
       });
       const data = await res.json().catch(() => null);
@@ -1005,6 +1006,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                 <button
                   type="button"
                   onClick={() => setContactFormExpanded(!contactFormExpanded)}
+                  aria-expanded={contactFormExpanded}
+                  aria-controls={contactFormId}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 cursor-pointer transition"
                 >
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1022,144 +1025,146 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
 
             <div className="p-5">
               {/* Add Contact Form (with whole-page validation) */}
-              <form onSubmit={handleAddContact} className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-950/40">
-                <div className="flex items-center justify-between pb-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    New Contact
-                  </span>
-                  {contactFieldErrors.general && (
-                    <span role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">
-                      {contactFieldErrors.general}
+              {contactFormExpanded && (
+                <form id={contactFormId} onSubmit={handleAddContact} className="flex flex-col gap-3 rounded-xl border border-slate-200/90 bg-slate-50/60 p-3.5 dark:border-slate-800 dark:bg-slate-950/40">
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      New Contact
                     </span>
-                  )}
-                </div>
+                    {contactFieldErrors.general && (
+                      <span role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">
+                        {contactFieldErrors.general}
+                      </span>
+                    )}
+                  </div>
 
-                <div>
-                  <label htmlFor={contactNameId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Full Name <span className="text-rose-500">*</span>
-                  </label>
-                  <Input
-                    id={contactNameId}
-                    value={contactName}
-                    onChange={(e) => {
-                      setContactName(e.target.value);
-                      if (contactFieldErrors.name || contactFieldErrors.general) {
-                        setContactFieldErrors((prev) => ({ ...prev, name: undefined, general: undefined }));
-                      }
-                    }}
-                    placeholder="Jane Doe"
-                    aria-label="Contact name"
-                    aria-invalid={Boolean(contactFieldErrors.name)}
-                    aria-describedby={contactFieldErrors.name ? `${contactNameId}-error` : undefined}
-                  />
-                  {contactFieldErrors.name && (
-                    <p
-                      id={`${contactNameId}-error`}
-                      role="alert"
-                      className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
-                    >
-                      {contactFieldErrors.name}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <label htmlFor={contactNameId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Full Name <span className="text-rose-500">*</span>
+                    </label>
+                    <Input
+                      id={contactNameId}
+                      value={contactName}
+                      onChange={(e) => {
+                        setContactName(e.target.value);
+                        if (contactFieldErrors.name || contactFieldErrors.general) {
+                          setContactFieldErrors((prev) => ({ ...prev, name: undefined, general: undefined }));
+                        }
+                      }}
+                      placeholder="Jane Doe"
+                      aria-label="Contact name"
+                      aria-invalid={Boolean(contactFieldErrors.name)}
+                      aria-describedby={contactFieldErrors.name ? `${contactNameId}-error` : undefined}
+                    />
+                    {contactFieldErrors.name && (
+                      <p
+                        id={`${contactNameId}-error`}
+                        role="alert"
+                        className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        {contactFieldErrors.name}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <label htmlFor={contactEmailId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Email address (optional)
-                  </label>
-                  <Input
-                    id={contactEmailId}
-                    value={contactEmail}
-                    type="email"
-                    onChange={(e) => {
-                      setContactEmail(e.target.value);
-                      if (contactFieldErrors.email || contactFieldErrors.general) {
-                        setContactFieldErrors((prev) => ({ ...prev, email: undefined, general: undefined }));
-                      }
-                    }}
-                    placeholder="jane@company.com"
-                    aria-label="Contact email"
-                    aria-invalid={Boolean(contactFieldErrors.email)}
-                    aria-describedby={contactFieldErrors.email ? `${contactEmailId}-error` : undefined}
-                  />
-                  {contactFieldErrors.email && (
-                    <p
-                      id={`${contactEmailId}-error`}
-                      role="alert"
-                      className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
-                    >
-                      {contactFieldErrors.email}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <label htmlFor={contactEmailId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Email address (optional)
+                    </label>
+                    <Input
+                      id={contactEmailId}
+                      value={contactEmail}
+                      type="email"
+                      onChange={(e) => {
+                        setContactEmail(e.target.value);
+                        if (contactFieldErrors.email || contactFieldErrors.general) {
+                          setContactFieldErrors((prev) => ({ ...prev, email: undefined, general: undefined }));
+                        }
+                      }}
+                      placeholder="jane@company.com"
+                      aria-label="Contact email"
+                      aria-invalid={Boolean(contactFieldErrors.email)}
+                      aria-describedby={contactFieldErrors.email ? `${contactEmailId}-error` : undefined}
+                    />
+                    {contactFieldErrors.email && (
+                      <p
+                        id={`${contactEmailId}-error`}
+                        role="alert"
+                        className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        {contactFieldErrors.email}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <label htmlFor={contactTitleId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Job Title / Role (optional)
-                  </label>
-                  <Input
-                    id={contactTitleId}
-                    value={contactTitle}
-                    onChange={(e) => {
-                      setContactTitle(e.target.value);
-                      if (contactFieldErrors.title) {
-                        setContactFieldErrors((prev) => ({ ...prev, title: undefined }));
-                      }
-                    }}
-                    placeholder="e.g. VP Marketing, Founder"
-                    aria-label="Contact title"
-                    aria-invalid={Boolean(contactFieldErrors.title)}
-                    aria-describedby={contactFieldErrors.title ? `${contactTitleId}-error` : undefined}
-                  />
-                  {contactFieldErrors.title && (
-                    <p
-                      id={`${contactTitleId}-error`}
-                      role="alert"
-                      className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
-                    >
-                      {contactFieldErrors.title}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <label htmlFor={contactTitleId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Job Title / Role (optional)
+                    </label>
+                    <Input
+                      id={contactTitleId}
+                      value={contactTitle}
+                      onChange={(e) => {
+                        setContactTitle(e.target.value);
+                        if (contactFieldErrors.title) {
+                          setContactFieldErrors((prev) => ({ ...prev, title: undefined }));
+                        }
+                      }}
+                      placeholder="e.g. VP Marketing, Founder"
+                      aria-label="Contact title"
+                      aria-invalid={Boolean(contactFieldErrors.title)}
+                      aria-describedby={contactFieldErrors.title ? `${contactTitleId}-error` : undefined}
+                    />
+                    {contactFieldErrors.title && (
+                      <p
+                        id={`${contactTitleId}-error`}
+                        role="alert"
+                        className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        {contactFieldErrors.title}
+                      </p>
+                    )}
+                  </div>
 
-                <div>
-                  <label htmlFor={contactPhoneId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
-                    Phone (optional)
-                  </label>
-                  <Input
-                    id={contactPhoneId}
-                    value={contactPhone}
-                    type="tel"
-                    onChange={(e) => {
-                      setContactPhone(e.target.value);
-                      if (contactFieldErrors.phone) {
-                        setContactFieldErrors((prev) => ({ ...prev, phone: undefined }));
-                      }
-                    }}
-                    placeholder="+1 (555) 019-2834"
-                    aria-label="Contact phone"
-                    aria-invalid={Boolean(contactFieldErrors.phone)}
-                    aria-describedby={contactPhoneId ? `${contactPhoneId}-error` : undefined}
-                  />
-                  {contactFieldErrors.phone && (
-                    <p
-                      id={`${contactPhoneId}-error`}
-                      role="alert"
-                      className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
-                    >
-                      {contactFieldErrors.phone}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <label htmlFor={contactPhoneId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
+                      Phone (optional)
+                    </label>
+                    <Input
+                      id={contactPhoneId}
+                      value={contactPhone}
+                      type="tel"
+                      onChange={(e) => {
+                        setContactPhone(e.target.value);
+                        if (contactFieldErrors.phone) {
+                          setContactFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                        }
+                      }}
+                      placeholder="+1 (555) 019-2834"
+                      aria-label="Contact phone"
+                      aria-invalid={Boolean(contactFieldErrors.phone)}
+                      aria-describedby={contactPhoneId ? `${contactPhoneId}-error` : undefined}
+                    />
+                    {contactFieldErrors.phone && (
+                      <p
+                        id={`${contactPhoneId}-error`}
+                        role="alert"
+                        className="mt-1 text-xs font-medium text-rose-600 dark:text-rose-400"
+                      >
+                        {contactFieldErrors.phone}
+                      </p>
+                    )}
+                  </div>
 
-                <Button
-                  type="submit"
-                  disabled={addingContact || !contactName.trim()}
-                  className="mt-1 w-full"
-                >
-                  {addingContact ? "Adding…" : "Add contact"}
-                </Button>
-              </form>
+                  <Button
+                    type="submit"
+                    disabled={addingContact || !contactName.trim()}
+                    className="mt-1 w-full"
+                  >
+                    {addingContact ? "Adding…" : "Add contact"}
+                  </Button>
+                </form>
+              )}
 
               {/* Contacts List with proper card framing and text wrapping */}
               <div className="mt-5">

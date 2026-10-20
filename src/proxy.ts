@@ -11,8 +11,8 @@ export function proxy(req: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   if (!isProtected) return NextResponse.next();
 
-  const hasSessionCookie = req.cookies.has(SESSION_COOKIE_NAME);
-  if (!hasSessionCookie) {
+  const sessionToken = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!sessionToken) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);

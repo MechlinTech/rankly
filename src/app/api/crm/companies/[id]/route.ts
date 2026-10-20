@@ -29,7 +29,7 @@ const patchSchema = z.object({
   domain: z.string().trim().max(255).optional(),
   stage: z.enum(["LEAD", "PROSPECT", "CLIENT", "CHURNED"]).optional(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
-  notes: z.string().trim().max(5000).optional(),
+  notes: z.string().trim().max(5000).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

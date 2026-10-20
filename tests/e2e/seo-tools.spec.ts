@@ -23,15 +23,15 @@ test.describe("SEO tools (real browser, real DB)", () => {
     await signUpViaUI(page);
     await page.goto("/rankings");
 
-    await page.getByPlaceholder("example.com").fill("example.com");
-    await page.getByPlaceholder(/seo software/).fill("seo software\nkeyword research tool");
+    await page.getByPlaceholder("e.g. acme.com or https://company.com").fill("example.com");
+    await page.getByPlaceholder(/Enter keywords to track/).fill("seo software\nkeyword research tool");
     await Promise.all([
       page.waitForResponse((res) => res.url().includes("/api/seo/rankings") && res.ok()),
-      page.getByRole("button", { name: "Check Rankings" }).click(),
+      page.getByRole("button", { name: "Check Rankings Now" }).click(),
     ]);
 
-    await expect(page.getByText("Showing mock data")).toBeVisible();
-    await expect(page.getByRole("cell", { name: "seo software" })).toBeVisible();
+    await expect(page.getByText("Mock Engine", { exact: true }).first()).toBeVisible();
+    await expect(page.getByRole("cell", { name: /seo software/i }).first()).toBeVisible();
   });
 
   test("site audit runs a real crawl against example.com and reports real issues", async ({ page }) => {

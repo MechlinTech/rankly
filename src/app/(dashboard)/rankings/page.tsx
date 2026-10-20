@@ -144,6 +144,226 @@ function DifficultyMeter({ score }: { score?: number | null }) {
   );
 }
 
+function ResultSnippet({ row }: { row: SerpResult }) {
+  if (!row.url) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs text-slate-400 italic">Not found in Google top 100</span>
+        <span className="text-[10px] text-slate-400">
+          Create targeted content to rank for this term.
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {row.title ? (
+        <a
+          href={row.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400 line-clamp-1"
+          title={row.title}
+        >
+          {row.title}
+        </a>
+      ) : (
+        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+          Ranking URL
+        </span>
+      )}
+
+      <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
+        <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656 5.656l-1.1 1.1" />
+        </svg>
+        <span className="truncate" title={row.url}>
+          {row.url.replace(/^https?:\/\//i, "")}
+        </span>
+      </div>
+
+      {row.snippet && (
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+          {row.snippet}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function ResultActions({
+  row,
+  isExpanded,
+  copiedUrl,
+  onToggleExpanded,
+  onCopy,
+}: {
+  row: SerpResult;
+  isExpanded: boolean;
+  copiedUrl: string | null;
+  onToggleExpanded: () => void;
+  onCopy: (url: string) => void;
+}) {
+  const hasSnippet = Boolean(row.title || row.snippet);
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <a
+        href={`https://www.google.com/search?q=${encodeURIComponent(row.term)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Open live Google search in new tab"
+        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </a>
+
+      {row.url && (
+        <button
+          type="button"
+          onClick={() => onCopy(row.url!)}
+          title={copiedUrl === row.url ? "Copied!" : "Copy ranking URL"}
+          className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
+        >
+          {copiedUrl === row.url ? (
+            <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+          )}
+        </button>
+      )}
+
+      {hasSnippet && (
+        <button
+          type="button"
+          onClick={onToggleExpanded}
+          title={isExpanded ? "Hide SERP card" : "Show SERP card"}
+          className={`rounded-md px-1.5 py-1 text-[11px] font-semibold transition cursor-pointer whitespace-nowrap ${
+            isExpanded
+              ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+              : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
+          }`}
+        >
+          {isExpanded ? "Hide" : "SERP"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ExpandedSerpPreview({
+  row,
+  copiedUrl,
+  onCopy,
+}: {
+  row: SerpResult;
+  copiedUrl: string | null;
+  onCopy: (url: string) => void;
+}) {
+  if (!row.url) return null;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <div className="min-w-0 lg:col-span-2 rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-700/80 dark:bg-slate-900">
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+            Google Search Result Simulation
+          </span>
+          <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+            Ranked #{row.position} on Google (Page {row.page ?? 1})
+          </span>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-mono">
+            <span className="inline-flex items-center justify-center h-4 w-4 shrink-0 rounded-full bg-slate-100 text-[9px] font-bold text-slate-700">G</span>
+            <span className="truncate">{row.url}</span>
+          </div>
+          <a
+            href={row.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-base font-semibold text-blue-700 hover:underline dark:text-blue-400 leading-snug break-words"
+          >
+            {row.title || row.term}
+          </a>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mt-0.5">
+            {row.snippet || "No description snippet returned by Google search."}
+          </p>
+        </div>
+      </div>
+
+      <div className="min-w-0 rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-700/80 dark:bg-slate-900 flex flex-col justify-between">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+            SERP Competitor Intelligence
+          </p>
+          {row.position === 1 ? (
+            <div className="rounded-lg bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+              Leading Ranking: You hold position #1 on Google for &quot;{row.term}&quot;.
+            </div>
+          ) : row.topCompetitor?.domain ? (
+            <div className="flex flex-col gap-1.5 text-xs">
+              <span className="text-slate-500">Currently Holding #1:</span>
+              <span className="font-bold text-slate-900 dark:text-white">
+                {row.topCompetitor.domain}
+              </span>
+              {row.topCompetitor.title && (
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 italic">
+                  &quot;{row.topCompetitor.title}&quot;
+                </p>
+              )}
+              {row.topCompetitor.url && (
+                <a
+                  href={row.topCompetitor.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1"
+                >
+                  <span>Inspect #1 Competitor Page</span>
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400">No competitor data found.</p>
+          )}
+        </div>
+
+        <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+          <a
+            href={`https://www.google.com/search?q=${encodeURIComponent(row.term)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400 inline-flex items-center gap-1"
+          >
+            <span>Open Live Google Search</span>
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+          <button
+            type="button"
+            onClick={() => onCopy(row.url!)}
+            className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
+          >
+            {copiedUrl === row.url ? "Copied!" : "Copy Link"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RankTrackingPage() {
   const router = useRouter();
   const domainId = useId();
@@ -284,6 +504,7 @@ export default function RankTrackingPage() {
   const totalFiltered = filteredResults.length;
   const maxPage = Math.max(1, Math.ceil(totalFiltered / pageSize));
   const currentPage = Math.min(Math.max(1, page), maxPage);
+  const visibleResults = paginateItems(filteredResults, currentPage, pageSize);
 
   async function runCheck() {
     const cleanDomain = normalizeDomain(domain);
@@ -467,7 +688,7 @@ export default function RankTrackingPage() {
                   className="pl-9 font-medium placeholder:font-normal"
                 />
               </div>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 Bare domain or URL (e.g. github.com)
               </p>
             </div>
@@ -485,7 +706,7 @@ export default function RankTrackingPage() {
                 <option value="google">Google Search (Global & Local)</option>
                 <option value="bing">Microsoft Bing Search</option>
               </select>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 Default: Google Organic Search
               </p>
             </div>
@@ -503,7 +724,7 @@ export default function RankTrackingPage() {
                 <option value="desktop">Desktop Web Crawler</option>
                 <option value="mobile">Mobile SmartPhone Index</option>
               </select>
-              <p className="mt-1 text-[11px] text-slate-400">
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
                 Matches user agent screen layout
               </p>
             </div>
@@ -540,7 +761,7 @@ export default function RankTrackingPage() {
               placeholder={"Enter keywords to track (one per line or comma-separated)\ne.g.\ncloud ranking software\norganic search optimization\nserp competitor intelligence"}
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-mono text-slate-900 placeholder:text-slate-400 placeholder:font-sans focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:focus:ring-slate-800"
             />
-            <p className="mt-1 text-[11px] text-slate-400">
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
               One keyword per line or comma-separated. Maximum 50 terms per batch.
             </p>
           </div>
@@ -720,8 +941,8 @@ export default function RankTrackingPage() {
               </div>
 
               {/* Search & Sort Controls */}
-              <div className="flex items-center gap-2.5 shrink-0">
-                <div className="relative w-44 sm:w-56">
+              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:shrink-0">
+                <div className="relative w-full sm:w-56">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
                     <svg className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -744,7 +965,7 @@ export default function RankTrackingPage() {
                     setSortBy(e.target.value);
                     setPage(1);
                   }}
-                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 cursor-pointer"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 cursor-pointer sm:w-auto"
                 >
                   <option value="position_asc">Rank (Best First)</option>
                   <option value="position_desc">Rank (Lowest First)</option>
@@ -762,29 +983,37 @@ export default function RankTrackingPage() {
                 No keywords match the selected filter or search term.
               </div>
             ) : (
-              <div className="overflow-x-auto min-w-0">
-                <table className="w-full text-left text-sm">
+              <>
+              <div className="hidden min-w-0 lg:block">
+                <table className="w-full table-fixed text-left text-sm">
+                  <colgroup>
+                    <col className="w-[17%]" />
+                    <col className="w-[14%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[28%]" />
+                    <col className="w-[13%]" />
+                    <col className="w-[15%]" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 dark:border-slate-800">
-                      <th className="py-2.5 px-3 font-semibold w-44">Keyword & Intent</th>
-                      <th className="py-2.5 px-3 font-semibold w-36 whitespace-nowrap">Google Position</th>
-                      <th className="py-2.5 px-3 font-semibold w-32 whitespace-nowrap">Volume & Difficulty</th>
-                      <th className="py-2.5 px-3 font-semibold min-w-0">Ranking SERP Snippet</th>
-                      <th className="py-2.5 px-3 font-semibold w-36">#1 Competitor</th>
-                      <th className="py-2.5 px-3 font-semibold w-24 text-right">Actions</th>
+                      <th className="py-2.5 px-2.5 font-semibold">Keyword &amp; Intent</th>
+                      <th className="py-2.5 px-2.5 font-semibold">Google Position</th>
+                      <th className="py-2.5 px-2.5 font-semibold">Volume &amp; Difficulty</th>
+                      <th className="py-2.5 px-2.5 font-semibold">Ranking SERP Snippet</th>
+                      <th className="py-2.5 px-2.5 font-semibold">#1 Competitor</th>
+                      <th className="py-2.5 px-2.5 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                    {paginateItems(filteredResults, currentPage, pageSize).map((row: SerpResult) => {
+                    {visibleResults.map((row: SerpResult) => {
                       const isExpanded = expandedTerm === row.term;
-                      const hasSnippet = Boolean(row.title || row.snippet);
 
                       return (
                         <Fragment key={row.term}>
                           <tr className="group transition hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
                             {/* 1. Keyword & Intent */}
-                            <td className="py-3 px-3 w-44 align-top">
-                              <div className="flex flex-col gap-1">
+                            <td className="py-3 px-2.5 align-top">
+                              <div className="flex min-w-0 flex-col gap-1">
                                 <span className="font-semibold text-slate-900 dark:text-slate-100 break-words [overflow-wrap:anywhere]">
                                   {row.term}
                                 </span>
@@ -800,9 +1029,9 @@ export default function RankTrackingPage() {
                             </td>
 
                             {/* 2. Position & Delta */}
-                            <td className="py-3 px-3 w-36 whitespace-nowrap align-top">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-1.5">
+                            <td className="py-3 px-2.5 align-top">
+                              <div className="flex min-w-0 flex-col gap-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
                                   <PositionBadge position={row.position} />
                                   <DeltaBadge change={row.positionChange} previous={row.previousPosition} />
                                 </div>
@@ -815,15 +1044,15 @@ export default function RankTrackingPage() {
                             </td>
 
                             {/* 3. Search Volume, KD & CPC */}
-                            <td className="py-3 px-3 w-32 whitespace-nowrap align-top">
-                              <div className="flex flex-col gap-1">
-                                <div className="flex items-center gap-2">
+                            <td className="py-3 px-2.5 align-top">
+                              <div className="flex min-w-0 flex-col gap-1">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap">
                                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
                                     {formatVolume(row.metrics?.searchVolume)}
                                   </span>
                                   <span className="text-[10px] text-slate-400">/mo</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                   <DifficultyMeter score={row.metrics?.difficulty} />
                                   {row.metrics?.cpc != null && (
                                     <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400" title="Estimated CPC">
@@ -835,63 +1064,20 @@ export default function RankTrackingPage() {
                             </td>
 
                             {/* 4. Ranking Title, Snippet & URL */}
-                            <td className="py-3 px-3 min-w-0 align-top">
-                              {row.url ? (
-                                <div className="flex flex-col gap-1 max-w-sm">
-                                  {/* Title as displayed in SERP */}
-                                  {row.title ? (
-                                    <a
-                                      href={row.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400 line-clamp-1"
-                                      title={row.title}
-                                    >
-                                      {row.title}
-                                    </a>
-                                  ) : (
-                                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                                      Ranking URL
-                                    </span>
-                                  )}
-
-                                  {/* URL Breadcrumb */}
-                                  <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400 font-mono">
-                                    <svg className="h-3 w-3 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                    </svg>
-                                    <span className="truncate max-w-sm" title={row.url}>
-                                      {row.url.replace(/^https?:\/\//i, "")}
-                                    </span>
-                                  </div>
-
-                                  {/* Google Search Snippet */}
-                                  {row.snippet && (
-                                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
-                                      {row.snippet}
-                                    </p>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-xs text-slate-400 italic">Not found in Google top 100</span>
-                                  <span className="text-[10px] text-slate-400">
-                                    Create targeted content to rank for this term.
-                                  </span>
-                                </div>
-                              )}
+                            <td className="py-3 px-2.5 align-top">
+                              <ResultSnippet row={row} />
                             </td>
 
                             {/* 5. #1 Competitor Info */}
-                            <td className="py-3 px-3 w-36 align-top">
+                            <td className="py-3 px-2.5 align-top">
                               {row.position === 1 ? (
-                                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                                <div className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"></span>
                                   <span>Target Domain (#1)</span>
                                 </div>
                               ) : row.topCompetitor?.domain ? (
-                                <div className="flex flex-col gap-0.5">
-                                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[130px]" title={row.topCompetitor.title || row.topCompetitor.domain}>
+                                <div className="flex min-w-0 flex-col gap-0.5">
+                                  <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate" title={row.topCompetitor.title || row.topCompetitor.domain}>
                                     {row.topCompetitor.domain}
                                   </span>
                                   {row.topCompetitor.url && (
@@ -899,9 +1085,9 @@ export default function RankTrackingPage() {
                                       href={row.topCompetitor.url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-[10px] text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 truncate max-w-[130px]"
+                                      className="text-[10px] text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 truncate"
                                     >
-                                      <span>View #1 Page</span>
+                                      <span className="truncate">View #1 Page</span>
                                       <svg className="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                                       </svg>
@@ -914,56 +1100,14 @@ export default function RankTrackingPage() {
                             </td>
 
                             {/* 6. Quick Action Buttons */}
-                            <td className="py-3 px-3 w-24 text-right align-top whitespace-nowrap">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {/* Google Search Live Link */}
-                                <a
-                                  href={`https://www.google.com/search?q=${encodeURIComponent(row.term)}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Open live Google search in new tab"
-                                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition"
-                                >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                  </svg>
-                                </a>
-
-                                {/* Copy URL button */}
-                                {row.url && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(row.url!)}
-                                    title={copiedUrl === row.url ? "Copied!" : "Copy ranking URL"}
-                                    className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition cursor-pointer"
-                                  >
-                                    {copiedUrl === row.url ? (
-                                      <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                                      </svg>
-                                    ) : (
-                                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                                      </svg>
-                                    )}
-                                  </button>
-                                )}
-
-                                {/* Toggle Google SERP Preview Card */}
-                                {hasSnippet && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setExpandedTerm(isExpanded ? null : row.term)}
-                                    className={`rounded-lg px-2 py-1 text-xs font-semibold transition cursor-pointer ${
-                                      isExpanded
-                                        ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
-                                        : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                                    }`}
-                                  >
-                                    {isExpanded ? "Hide" : "SERP Card"}
-                                  </button>
-                                )}
-                              </div>
+                            <td className="py-3 px-2.5 text-right align-top">
+                              <ResultActions
+                                row={row}
+                                isExpanded={isExpanded}
+                                copiedUrl={copiedUrl}
+                                onToggleExpanded={() => setExpandedTerm(isExpanded ? null : row.term)}
+                                onCopy={handleCopy}
+                              />
                             </td>
                           </tr>
 
@@ -971,99 +1115,7 @@ export default function RankTrackingPage() {
                           {isExpanded && row.url && (
                             <tr className="bg-slate-50/90 dark:bg-slate-850 border-b border-slate-200/80 dark:border-slate-800">
                               <td colSpan={6} className="p-4 sm:p-5">
-                                <div className="grid gap-4 lg:grid-cols-3">
-                                  {/* Google SERP Snippet Preview (2 cols) */}
-                                  <div className="lg:col-span-2 rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-700/80 dark:bg-slate-900">
-                                    <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                        Google Search Result Simulation
-                                      </span>
-                                      <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
-                                        Ranked #{row.position} on Google (Page {row.page ?? 1})
-                                      </span>
-                                    </div>
-
-                                    <div className="flex flex-col gap-1">
-                                      <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-mono">
-                                        <span className="inline-flex items-center justify-center h-4 w-4 rounded-full bg-slate-100 text-[9px] font-bold text-slate-700">G</span>
-                                        <span className="truncate max-w-md">{row.url}</span>
-                                      </div>
-                                      <a
-                                        href={row.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-base font-semibold text-blue-700 hover:underline dark:text-blue-400 leading-snug"
-                                      >
-                                        {row.title || row.term}
-                                      </a>
-                                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed mt-0.5">
-                                        {row.snippet || "No description snippet returned by Google search."}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {/* Competitor & Ranking Intelligence (1 col) */}
-                                  <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-xs dark:border-slate-700/80 dark:bg-slate-900 flex flex-col justify-between">
-                                    <div>
-                                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                                        SERP Competitor Intelligence
-                                      </p>
-                                      {row.position === 1 ? (
-                                        <div className="rounded-lg bg-emerald-50 p-3 text-xs font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
-                                          Leading Ranking: You hold position #1 on Google for &quot;{row.term}&quot;.
-                                        </div>
-                                      ) : row.topCompetitor?.domain ? (
-                                        <div className="flex flex-col gap-1.5 text-xs">
-                                          <span className="text-slate-500">Currently Holding #1:</span>
-                                          <span className="font-bold text-slate-900 dark:text-white">
-                                            {row.topCompetitor.domain}
-                                          </span>
-                                          {row.topCompetitor.title && (
-                                            <p className="text-[11px] text-slate-600 dark:text-slate-400 line-clamp-2 italic">
-                                              &quot;{row.topCompetitor.title}&quot;
-                                            </p>
-                                          )}
-                                          {row.topCompetitor.url && (
-                                            <a
-                                              href={row.topCompetitor.url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="mt-1 text-xs font-semibold text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1"
-                                            >
-                                              <span>Inspect #1 Competitor Page</span>
-                                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                              </svg>
-                                            </a>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <p className="text-xs text-slate-400">No competitor data found.</p>
-                                      )}
-                                    </div>
-
-                                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                      <a
-                                        href={`https://www.google.com/search?q=${encodeURIComponent(row.term)}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400 inline-flex items-center gap-1"
-                                      >
-                                        <span>Open Live Google Search</span>
-                                        <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                      </a>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleCopy(row.url!)}
-                                        className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                                      >
-                                        {copiedUrl === row.url ? "Copied!" : "Copy Link"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
+                                <ExpandedSerpPreview row={row} copiedUrl={copiedUrl} onCopy={handleCopy} />
                               </td>
                             </tr>
                           )}
@@ -1073,6 +1125,130 @@ export default function RankTrackingPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile / tablet card layout */}
+              <ul className="flex flex-col gap-3 lg:hidden">
+                {visibleResults.map((row: SerpResult) => {
+                  const isExpanded = expandedTerm === row.term;
+
+                  return (
+                    <li
+                      key={row.term}
+                      className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-2xs dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex min-w-0 flex-col gap-1.5">
+                          <span className="font-semibold text-slate-900 dark:text-slate-100 break-words [overflow-wrap:anywhere]">
+                            {row.term}
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <IntentBadge intent={row.metrics?.intent} />
+                            {row.resultType && row.resultType !== "organic" && (
+                              <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 uppercase">
+                                {row.resultType.replace(/_/g, " ")}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shrink-0">
+                          <ResultActions
+                            row={row}
+                            isExpanded={isExpanded}
+                            copiedUrl={copiedUrl}
+                            onToggleExpanded={() => setExpandedTerm(isExpanded ? null : row.term)}
+                            onCopy={handleCopy}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-2 gap-3 border-t border-slate-100 pt-3 dark:border-slate-800 sm:grid-cols-3">
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Position
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <PositionBadge position={row.position} />
+                            <DeltaBadge change={row.positionChange} previous={row.previousPosition} />
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Volume
+                          </span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                            {formatVolume(row.metrics?.searchVolume)}
+                            <span className="ml-1 text-[10px] font-normal text-slate-400">/mo</span>
+                          </span>
+                        </div>
+                        <div className="flex min-w-0 flex-col gap-1">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                            Difficulty
+                          </span>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <DifficultyMeter score={row.metrics?.difficulty} />
+                            {row.metrics?.cpc != null && (
+                              <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400" title="Estimated CPC">
+                                CPC: {formatCpc(row.metrics.cpc)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          Ranking Snippet
+                        </span>
+                        <div className="mt-1">
+                          <ResultSnippet row={row} />
+                        </div>
+                      </div>
+
+                      <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                          #1 Competitor
+                        </span>
+                        <div className="mt-1">
+                          {row.position === 1 ? (
+                            <div className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"></span>
+                              <span>Target Domain (#1)</span>
+                            </div>
+                          ) : row.topCompetitor?.domain ? (
+                            <div className="flex min-w-0 flex-col gap-0.5">
+                              <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 truncate" title={row.topCompetitor.title || row.topCompetitor.domain}>
+                                {row.topCompetitor.domain}
+                              </span>
+                              {row.topCompetitor.url && (
+                                <a
+                                  href={row.topCompetitor.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-indigo-600 hover:underline dark:text-indigo-400 inline-flex items-center gap-1 truncate"
+                                >
+                                  <span className="truncate">View #1 Page</span>
+                                  <svg className="h-2.5 w-2.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                                </a>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {isExpanded && row.url && (
+                        <div className="mt-3 border-t border-slate-100 pt-3 dark:border-slate-800">
+                          <ExpandedSerpPreview row={row} copiedUrl={copiedUrl} onCopy={handleCopy} />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              </>
             )}
 
             {/* Pagination Controls */}
