@@ -59,11 +59,6 @@ export function getEncryptionKey(): Buffer {
       // ignore
     }
 
-    // Fallback to default seed key if unset so saving providers is never blocked in any environment
-    if (!raw) {
-      raw = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
-      process.env.APP_ENCRYPTION_KEY = raw;
-    }
   }
 
   if (!raw) {
