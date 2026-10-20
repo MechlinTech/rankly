@@ -70,6 +70,7 @@ jobs:
           ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
+          APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
         run: |
           $ErrorActionPreference = "Stop"
           foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
@@ -101,6 +102,7 @@ jobs:
             "ADMIN_EMAIL=$adminEmail"
             "ADMIN_PASSWORD=$adminPassword"
             "ADMIN_NAME=$adminName"
+            "APP_ENCRYPTION_KEY=$env:APP_ENCRYPTION_KEY"
           )
           Set-Content -Path $envFile -Value $pairs -Encoding ascii
           Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
