@@ -32,13 +32,15 @@ All routes are Next.js Route Handlers under `src/app/api/`. No public API versio
 
 ## SEO engine — `src/app/api/seo/`
 
-All three require a session and a non-suspended tenant; results persist to the caller's tenant/project.
+All routes require a session and a non-suspended tenant. Audit, keyword lookup, and rank tracking results persist to the caller's tenant/project. AI recommendations and AI keyword ideas are returned to the caller and are not saved as records.
 
 | Route | Method | Notes |
 |---|---|---|
 | `/api/seo/audit` | POST | `{ domain, maxPages? }`. Runs a real crawl. Rate-limited and entitlement-checked (max audits/month) — 402 if exceeded. |
-| `/api/seo/keywords` | POST | `{ term, locale? }`. Mock data today (see `KNOWN_LIMITATIONS.md`); persists to `Keyword`. |
-| `/api/seo/rankings` | POST | `{ domain, terms[], engine?, device? }`. Mock data today; persists to `RankSnapshot`. |
+| `/api/seo/ai-insights` | POST | `{ auditRunId }`. Uses the configured platform AI provider to produce recommendations from a completed audit owned by the caller's tenant. Limited to 10 requests/hour per tenant; 503 if no AI provider is configured. |
+| `/api/seo/keywords/ideas` | POST | `{ term, locale? }`. Uses the configured platform AI provider to generate keyword ideas with intent labels and rationales (no search metrics). Limited to 20 requests/hour per tenant; 503 if no AI provider is configured. |
+| `/api/seo/keywords` | POST | `{ term, locale? }`. Uses OpenSERP related searches/PAA if `OPENSERP_API_KEY` is configured; otherwise uses mock data. Search volume, difficulty, and CPC remain unavailable without a keyword metrics provider. Persists to `Keyword`. |
+| `/api/seo/rankings` | POST | `{ domain, terms[], engine?, device? }`. Uses OpenSERP when configured; otherwise uses mock data. Persists to `RankSnapshot`. |
 
 ## Billing — `src/app/api/billing/`
 

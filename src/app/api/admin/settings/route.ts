@@ -54,7 +54,7 @@ export async function GET() {
       id: "openserp",
       name: "OpenSERP / Google SERP API",
       category: "Search & SEO",
-      description: "Powers real-time Google search rank tracking and position verification in /rankings.",
+      description: "Powers live Google rank checks in /rankings and related-search / People Also Ask ideas in /keywords.",
       envKey: "OPENSERP_API_KEY",
       aliasKey: "SERP_API_KEY",
       isConfigured: Boolean(openSerpVal?.trim()),
