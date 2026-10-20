@@ -55,7 +55,7 @@ AWS equivalent: Application Load Balancer + ACM certificate + target group point
 
 ## 4. Environment variables
 
-See `ENVIRONMENT_VARIABLES.md` for the full list. Set `DATABASE_URL` and a unique, stable `APP_ENCRYPTION_KEY` before deploying; otherwise integrations that save encrypted credentials cannot be used. Keep the encryption key unchanged across releases and backups, because changing it makes previously saved provider credentials unreadable. Set OAuth, Stripe, and email variables only once you've created those provider accounts — leaving them unset is safe (the app returns clear "not configured" errors rather than fake success).
+See `ENVIRONMENT_VARIABLES.md` for the full list. The self-hosted GitHub Actions deployment workflow creates a unique, stable `APP_ENCRYPTION_KEY` per environment and persists it in the runner tool cache when the `APP_ENCRYPTION_KEY` environment secret is unset. Back up that persisted key alongside database backups; losing or changing it makes previously saved provider credentials unreadable. You can instead provide `APP_ENCRYPTION_KEY` as a production secret. Set OAuth, Stripe, and email variables only once you've created those provider accounts — leaving them unset is safe (the app returns clear "not configured" errors rather than fake success).
 
 **Secrets management**: don't ship a `.env` file to your server via `git`/`scp` in the clear if avoidable. Options: Docker secrets, a `.env` file with restricted file permissions (`chmod 600`) outside the git-tracked directory, or (AWS equivalent) Secrets Manager / Parameter Store, injected as environment variables at container start.
 
