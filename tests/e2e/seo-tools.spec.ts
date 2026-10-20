@@ -14,7 +14,7 @@ test.describe("SEO tools (real browser, real DB)", () => {
       page.getByRole("button", { name: "Research" }).click(),
     ]);
 
-    await expect(page.getByText("Showing mock data")).toBeVisible();
+    await expect(page.getByText(/Showing (simulated )?mock data/)).toBeVisible();
     await expect(page.getByText("local seo services", { exact: false }).first()).toBeVisible();
     await expect(page.getByText("seed", { exact: true })).toBeVisible();
   });
