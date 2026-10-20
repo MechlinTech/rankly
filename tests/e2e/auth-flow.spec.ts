@@ -1,5 +1,18 @@
 import { test, expect } from "@playwright/test";
-import { signUpViaUI, logout } from "./helpers";
+import { randomUUID } from "crypto";
+import { Client } from "pg";
+import { signUpViaUI, logout, randomEmail } from "./helpers";
+
+let db: Client;
+
+test.beforeAll(async () => {
+  db = new Client({ connectionString: process.env.DATABASE_URL });
+  await db.connect();
+});
+
+test.afterAll(async () => {
+  await db.end();
+});
 
 test.describe("auth flow (real browser)", () => {
   test("signup lands on the dashboard with the correct tenant shown", async ({ page }) => {
@@ -38,6 +51,99 @@ test.describe("auth flow (real browser)", () => {
     await expect(input).toHaveAttribute("type", "password");
     await expect(toggle).toHaveAttribute("aria-label", "Show password");
     await expect(toggle.locator("svg circle")).toHaveCount(0);
+  });
+
+  test("signup rejects passwords containing whitespace", async ({ page }) => {
+    await page.goto("/signup");
+    await page.getByLabel("Your name").fill("Whitespace Test User");
+    await page.getByLabel("Company name").fill("Whitespace Test Co");
+    await page.getByLabel("Email").fill(`whitespace-${Date.now()}@e2e-test.local`);
+
+    const password = page.getByLabel("Password", { exact: true });
+    const submit = page.getByRole("button", { name: "Create account" });
+
+    for (const invalidPassword of [
+      " ",
+      "a b",
+      " e2e-test-password-123",
+      "e2e-test-password-123 ",
+      "e2e test password 123",
+    ]) {
+      await password.fill(invalidPassword);
+      await submit.click();
+      await expect(page.locator('p[role="alert"]')).toHaveText("Password must not contain spaces.");
+      expect(page.url()).toContain("/signup");
+    }
+  });
+
+  test("reset-password rejects passwords containing whitespace", async ({ page }) => {
+    const user = await signUpViaUI(page);
+    const result = await db.query<{ id: string }>('SELECT "id" FROM "User" WHERE "email" = $1', [
+      user.email,
+    ]);
+    const dbUser = result.rows[0];
+    const token = `e2e-reset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    await db.query(
+      'INSERT INTO "PasswordResetToken" ("id", "userId", "token", "expiresAt") VALUES ($1, $2, $3, $4)',
+      [randomUUID(), dbUser.id, token, new Date(Date.now() + 60 * 60 * 1000)]
+    );
+
+    await page.goto(`/reset-password/${token}`);
+    const password = page.getByLabel("New password");
+    const submit = page.getByRole("button", { name: "Update password" });
+
+    for (const invalidPassword of [
+      " ",
+      "a b",
+      " e2e-test-password-123",
+      "e2e-test-password-123 ",
+      "e2e test password 123",
+    ]) {
+      await password.fill(invalidPassword);
+      await submit.click();
+      await expect(page.getByText("Password must not contain spaces.")).toBeVisible();
+    }
+  });
+
+  test("invite password setup rejects passwords containing whitespace", async ({ page }) => {
+    const owner = await signUpViaUI(page);
+    const result = await db.query<{ id: string; tenantId: string }>(
+      'SELECT u."id", m."tenantId" FROM "User" u JOIN "Membership" m ON m."userId" = u."id" WHERE u."email" = $1 LIMIT 1',
+      [owner.email]
+    );
+    const ownerUser = result.rows[0];
+    const token = `e2e-invite-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    await db.query(
+      'INSERT INTO "Invitation" ("id", "tenantId", "email", "role", "token", "invitedBy", "expiresAt") VALUES ($1, $2, $3, $4::"Role", $5, $6, $7)',
+      [
+        randomUUID(),
+        ownerUser.tenantId,
+        randomEmail("whitespace-invitee"),
+        "MEMBER",
+        token,
+        ownerUser.id,
+        new Date(Date.now() + 24 * 60 * 60 * 1000),
+      ]
+    );
+
+    await page.goto(`/invite/${token}`);
+    await page.getByLabel("Your name").fill("Invited Test User");
+    const password = page.getByLabel("Set a password");
+    const submit = page.getByRole("button", { name: "Accept invitation" });
+
+    for (const invalidPassword of [
+      " ",
+      "a b",
+      " member-password-123",
+      "member-password-123 ",
+      "member password 123",
+    ]) {
+      await password.fill(invalidPassword);
+      await submit.click();
+      await expect(page.getByText("Password must not contain spaces.")).toBeVisible();
+    }
   });
 
   test("signup uses the same persistent password visibility toggle", async ({ page }) => {

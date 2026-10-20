@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getCurrentUser, createSession } from "@/lib/auth/session";
-import { hashPassword, passwordStrengthError } from "@/lib/auth/password";
+import { hashPassword } from "@/lib/auth/password";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
 import { getClientIp } from "@/lib/auth/rate-limit";
 
 const requestSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
-  password: z.string().min(1).max(200).optional(),
+  password: z.string().min(1).optional(),
 });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

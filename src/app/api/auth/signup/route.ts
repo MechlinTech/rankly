@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const name = record.name.trim();
   const companyName = record.companyName.trim();
   const email = record.email.trim().toLowerCase();
-  const password = record.password.trim();
+  const password = record.password;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {

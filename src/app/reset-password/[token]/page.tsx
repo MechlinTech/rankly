@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Spinner } from "@/components/ui";
 import { PasswordField } from "@/components/password-field";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
+import { messageFromApiError } from "@/lib/auth/signup-validation";
 
 export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -26,6 +28,12 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const passwordError = passwordStrengthError(password);
+    if (passwordError) {
+      setError(passwordError);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -36,7 +44,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Something went wrong.");
+        setError(messageFromApiError(data.error, "Something went wrong."));
         return;
       }
       setDone(true);
@@ -75,7 +83,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
         )}
 
         {valid && !done && (
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+          <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
             <div>
               <label htmlFor={passwordId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
                 New password
@@ -89,7 +97,7 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
                 autoComplete="new-password"
               />
               <p className="mt-1 text-xs text-slate-500">
-                At least 10 characters. Blank spaces alone are not accepted.
+                At least 10 characters. Spaces and tabs are not allowed.
               </p>
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  PASSWORD_TOO_LONG_MESSAGE,
   PASSWORD_TOO_SHORT_MESSAGE,
   PASSWORD_WHITESPACE_MESSAGE,
   hashPassword,
@@ -10,31 +11,50 @@ import {
 import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "./signup-validation";
 
 describe("password strength", () => {
-  it("rejects a password made only of spaces, even when it is 10 characters or longer", () => {
-    expect(passwordStrengthError("          ")).toBe(PASSWORD_WHITESPACE_MESSAGE);
-    expect(isPasswordStrongEnough("          ")).toBe(false);
+  it("rejects leading, trailing, and internal whitespace with the exact message", () => {
+    const invalidPasswords = [
+      " password12",
+      "password12 ",
+      "pass word1",
+      "pass\tword1",
+      "pass\nword1",
+      "pass\u00a0word1",
+      "          ",
+    ];
+
+    for (const password of invalidPasswords) {
+      expect(passwordStrengthError(password)).toBe(PASSWORD_WHITESPACE_MESSAGE);
+      expect(isPasswordStrongEnough(password)).toBe(false);
+    }
   });
 
-  it("does not count surrounding spaces toward the 10 character minimum", () => {
-    expect(passwordStrengthError("short     ")).toBe(PASSWORD_TOO_SHORT_MESSAGE);
-    expect(isPasswordStrongEnough("password1 ")).toBe(false);
+  it("checks whitespace before the length requirement", () => {
+    expect(passwordStrengthError(" short     ")).toBe(PASSWORD_WHITESPACE_MESSAGE);
   });
 
-  it("accepts a 10 character password and keeps internal spaces", () => {
+  it("accepts passwords without whitespace", () => {
     expect(passwordStrengthError("password12")).toBeNull();
-    expect(isPasswordStrongEnough("pass word1")).toBe(true);
+    expect(passwordStrengthError("correct-horse-battery")).toBeNull();
+    expect(isPasswordStrongEnough("password12")).toBe(true);
   });
 
-  it("treats tabs and newlines as blank spaces, not as password characters", () => {
-    expect(passwordStrengthError("\t \n \r\n     ")).toBe(PASSWORD_WHITESPACE_MESSAGE);
+  it("preserves the minimum and maximum length requirements", () => {
+    expect(passwordStrengthError("short")).toBe(PASSWORD_TOO_SHORT_MESSAGE);
+    expect(passwordStrengthError("a".repeat(201))).toBe(PASSWORD_TOO_LONG_MESSAGE);
+    expect(passwordStrengthError("a".repeat(200))).toBeNull();
   });
 
-  it("ignores surrounding whitespace but hashes embedded spaces exactly", async () => {
-    const hash = await hashPassword("  pass word1  ");
+  it("hashes and verifies the exact password without trimming it", async () => {
+    const hash = await hashPassword("password12");
 
-    expect(await verifyPassword("pass word1", hash)).toBe(true);
-    expect(await verifyPassword("  pass word1  ", hash)).toBe(true);
-    expect(await verifyPassword("password1", hash)).toBe(false);
+    expect(await verifyPassword("password12", hash)).toBe(true);
+    expect(await verifyPassword(" password12", hash)).toBe(false);
+    expect(await verifyPassword("password12 ", hash)).toBe(false);
+    expect(await verifyPassword("pass word1", hash)).toBe(false);
+  });
+
+  it("refuses to hash a password containing whitespace", async () => {
+    await expect(hashPassword(" pass word1 ")).rejects.toThrow(PASSWORD_WHITESPACE_MESSAGE);
   });
 });
 
@@ -64,15 +84,14 @@ describe("signup validation messages", () => {
     );
   });
 
-  it("rejects a spaces-only password during signup", () => {
-    expect(signupValidationMessage({ ...valid, password: "          " })).toBe(
-      PASSWORD_WHITESPACE_MESSAGE
-    );
+  it("rejects any whitespace in a signup password", () => {
+    for (const password of [" password12", "password12 ", "pass word1", "pass\tword1"]) {
+      expect(signupValidationMessage({ ...valid, password })).toBe(PASSWORD_WHITESPACE_MESSAGE);
+    }
   });
 
-  it("accepts an embedded space and ignores surrounding whitespace during signup", () => {
-    expect(signupValidationMessage({ ...valid, password: "pass word1" })).toBeNull();
-    expect(signupValidationMessage({ ...valid, password: "  pass word1  " })).toBeNull();
+  it("accepts a valid signup password", () => {
+    expect(signupValidationMessage(valid)).toBeNull();
   });
 
   it("reads the first field error instead of a generic fallback", () => {

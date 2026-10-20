@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input, Spinner } from "@/components/ui";
 import { PasswordField } from "@/components/password-field";
+import { passwordStrengthError } from "@/lib/auth/password-policy";
+import { messageFromApiError, SIGNUP_NAME_REQUIRED } from "@/lib/auth/signup-validation";
 
 interface InviteInfo {
   email: string;
@@ -43,6 +45,18 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!info?.requiresLogin) {
+      if (!name.trim()) {
+        setSubmitError(SIGNUP_NAME_REQUIRED);
+        return;
+      }
+      const passwordError = passwordStrengthError(password);
+      if (passwordError) {
+        setSubmitError(passwordError);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -53,7 +67,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
       });
       const data = await res.json();
       if (!res.ok) {
-        setSubmitError(data.error ?? "Something went wrong.");
+        setSubmitError(messageFromApiError(data.error, "Something went wrong."));
         return;
       }
       router.push("/keywords");
@@ -100,7 +114,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
                 </Link>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+              <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-4">
                 <div>
                   <label htmlFor={nameId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
                     Your name
@@ -120,7 +134,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
                     autoComplete="new-password"
                   />
                   <p className="mt-1 text-xs text-slate-500">
-                    At least 10 characters. Blank spaces alone are not accepted.
+                    At least 10 characters. Spaces and tabs are not allowed.
                   </p>
                 </div>
                 {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
