@@ -41,7 +41,7 @@ describe("DataForSEO keyword provider", () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain("dataforseo_labs/keyword_suggestions/live");
+    expect(url).toContain("dataforseo_labs/google/keyword_suggestions/live");
     expect(new Headers(request.headers).get("Authorization")).toBe(
       `Basic ${Buffer.from("seo@example.com:secret").toString("base64")}`,
     );
@@ -95,5 +95,42 @@ describe("DataForSEO keyword provider", () => {
       { term: "crm software", locale: "en-US", searchVolume: 5000, difficulty: 75, cpc: 12.0, intent: "commercial" },
       { term: "best crm software", locale: "en-US", searchVolume: 2400, difficulty: 68, cpc: 9.5, intent: "transactional" },
     ]);
+  });
+
+  it("falls back to legacy URL when Google endpoint returns 404", async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/google/")) {
+        return { status: 404, ok: false };
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          status_code: 20000,
+          tasks: [{
+            status_code: 20000,
+            result: [{
+              items: [{ keyword: "crm tools", keyword_info: { search_volume: 300 } }],
+            }],
+          }],
+        }),
+      };
+    });
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const provider = new DataForSeoKeywordProvider("user", "pass");
+    const terms = await provider.getRelatedKeywords("crm", "en-US", 5);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(terms).toEqual(["crm tools"]);
+  });
+
+  it("surfaces friendly timeout message when request aborts due to timeout", async () => {
+    const timeoutErr = new Error("The operation was aborted due to timeout");
+    timeoutErr.name = "TimeoutError";
+    globalThis.fetch = vi.fn().mockRejectedValue(timeoutErr);
+
+    const provider = new DataForSeoKeywordProvider("user", "pass");
+    await expect(provider.getRelatedKeywords("crm", "en-US", 5)).rejects.toThrow(
+      "DataForSEO request timed out after 20 seconds."
+    );
   });
 });
