@@ -909,9 +909,13 @@ export default function RankTrackingPage() {
         {result && (
           <div className="p-5 flex flex-col gap-4">
             {/* Filter Chips & Search Controls */}
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-b border-slate-100 pb-4 dark:border-slate-800">
+            <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 dark:border-slate-800 xl:flex-row xl:items-center xl:gap-2">
               {/* Filter Tabs */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div
+                role="group"
+                aria-label="Filter rankings by position"
+                className="flex min-w-0 items-center gap-1 overflow-x-auto py-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:flex-1 xl:py-0"
+              >
                 {[
                   { key: "ALL", label: `All (${metrics?.total ?? 0})` },
                   { key: "TOP3", label: `Top 3 (${metrics?.top3 ?? 0})` },
@@ -929,7 +933,8 @@ export default function RankTrackingPage() {
                       setActiveFilter(chip.key);
                       setPage(1);
                     }}
-                    className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+                    aria-pressed={activeFilter === chip.key}
+                    className={`inline-flex h-8 shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition cursor-pointer xl:px-2 xl:text-[11px] ${
                       activeFilter === chip.key
                         ? "bg-slate-900 text-white shadow-2xs dark:bg-white dark:text-slate-900"
                         : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
@@ -941,8 +946,8 @@ export default function RankTrackingPage() {
               </div>
 
               {/* Search & Sort Controls */}
-              <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center lg:w-auto lg:shrink-0">
-                <div className="relative w-full sm:w-56">
+              <div className="flex w-full flex-col gap-2 md:flex-row md:items-center xl:w-auto xl:shrink-0 xl:gap-2">
+                <div className="relative w-full md:w-48 xl:w-36">
                   <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
                     <svg className="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -955,7 +960,7 @@ export default function RankTrackingPage() {
                       setSearchQuery(e.target.value);
                       setPage(1);
                     }}
-                    className="pl-8 text-xs py-1.5"
+                    className="h-8 py-0! pl-8 text-xs"
                   />
                 </div>
 
@@ -965,13 +970,13 @@ export default function RankTrackingPage() {
                     setSortBy(e.target.value);
                     setPage(1);
                   }}
-                  className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 cursor-pointer sm:w-auto"
+                  className="h-8 w-full rounded-lg border border-slate-200 bg-white px-2.5 py-0 text-xs font-medium text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 cursor-pointer md:w-auto xl:w-40"
                 >
                   <option value="position_asc">Rank (Best First)</option>
                   <option value="position_desc">Rank (Lowest First)</option>
-                  <option value="volume_desc">Search Volume (High → Low)</option>
-                  <option value="difficulty_asc">SEO Difficulty (Easy First)</option>
-                  <option value="difficulty_desc">SEO Difficulty (Hard First)</option>
+                  <option value="volume_desc">Volume (High → Low)</option>
+                  <option value="difficulty_asc">Difficulty (Easy First)</option>
+                  <option value="difficulty_desc">Difficulty (Hard First)</option>
                   <option value="term_asc">Keyword A → Z</option>
                 </select>
               </div>
