@@ -22,6 +22,12 @@ test.describe("auth flow (real browser)", () => {
     // Eye-off icon has no pupil circle; the open eye does.
     await expect(toggle.locator("svg circle")).toHaveCount(0);
 
+    // Losing and regaining focus must not remove the toggle.
+    await page.getByRole("heading", { name: "Log in to Rankly" }).click();
+    await expect(toggle).toBeVisible();
+    await input.focus();
+    await expect(toggle).toBeVisible();
+
     await toggle.click();
     await expect(input).toHaveAttribute("type", "text");
     await expect(toggle).toHaveAttribute("aria-label", "Hide password");
@@ -32,6 +38,26 @@ test.describe("auth flow (real browser)", () => {
     await expect(input).toHaveAttribute("type", "password");
     await expect(toggle).toHaveAttribute("aria-label", "Show password");
     await expect(toggle.locator("svg circle")).toHaveCount(0);
+  });
+
+  test("signup uses the same persistent password visibility toggle", async ({ page }) => {
+    await page.goto("/signup");
+
+    const input = page.locator('input[autocomplete="new-password"]');
+    const toggle = page.locator('button[aria-label="Show password"], button[aria-label="Hide password"]');
+
+    await expect(toggle).toHaveCount(1);
+    await input.fill("e2e-test-password-123");
+    await expect(toggle).toBeVisible();
+
+    await page.getByRole("heading", { name: "Create your workspace" }).click();
+    await expect(toggle).toBeVisible();
+    await input.focus();
+    await expect(toggle).toBeVisible();
+
+    await toggle.click();
+    await expect(input).toHaveAttribute("type", "text");
+    await expect(toggle).toHaveAttribute("aria-label", "Hide password");
   });
 
   test("logging out resets the next visit to light mode without disabling theme switching", async ({ page }) => {
@@ -109,7 +135,7 @@ test.describe("auth flow (real browser)", () => {
     await page.getByLabel("Your name").fill("Someone Else");
     await page.getByLabel("Company name").fill("A Different Company");
     await page.getByLabel("Email").fill(user.email);
-    await page.getByLabel("Password").fill("another-password-123");
+    await page.getByLabel("Password", { exact: true }).fill("another-password-123");
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page.getByText("An account with this email address already exists. Please log in or use a different email address.")).toBeVisible();

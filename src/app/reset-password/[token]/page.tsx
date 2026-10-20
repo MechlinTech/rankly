@@ -3,7 +3,8 @@
 import { use, useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, Card, Input, Spinner } from "@/components/ui";
+import { Button, Card, Spinner } from "@/components/ui";
+import { PasswordField } from "@/components/password-field";
 
 export default function ResetPasswordPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -79,16 +80,17 @@ export default function ResetPasswordPage({ params }: { params: Promise<{ token:
               <label htmlFor={passwordId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">
                 New password
               </label>
-              <Input
+              <PasswordField
                 id={passwordId}
-                type="password"
                 required
                 minLength={10}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={setPassword}
                 autoComplete="new-password"
               />
-              <p className="mt-1 text-xs text-slate-500">At least 10 characters.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                At least 10 characters. Blank spaces alone are not accepted.
+              </p>
             </div>
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
             <Button type="submit" disabled={submitting}>

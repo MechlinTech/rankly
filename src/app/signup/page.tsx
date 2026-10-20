@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Card, Input } from "@/components/ui";
+import { PasswordField } from "@/components/password-field";
 import { OAuthButtons } from "@/components/oauth-buttons";
 import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "@/lib/auth/signup-validation";
 
@@ -81,13 +82,12 @@ export default function SignupPage() {
           </div>
           <div>
             <label htmlFor={passwordId} className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400">Password</label>
-            <Input
+            <PasswordField
               id={passwordId}
-              type="password"
               required
               minLength={10}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               autoComplete="new-password"
             />
             <p className="mt-1 text-xs text-slate-500">At least 10 characters. Blank spaces alone are not accepted.</p>

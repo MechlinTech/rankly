@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   PASSWORD_TOO_SHORT_MESSAGE,
   PASSWORD_WHITESPACE_MESSAGE,
+  hashPassword,
   isPasswordStrongEnough,
   passwordStrengthError,
+  verifyPassword,
 } from "./password";
 import { messageFromApiError, signupValidationMessage, SIGNUP_DUPLICATE_EMAIL } from "./signup-validation";
 
@@ -21,6 +23,18 @@ describe("password strength", () => {
   it("accepts a 10 character password and keeps internal spaces", () => {
     expect(passwordStrengthError("password12")).toBeNull();
     expect(isPasswordStrongEnough("pass word1")).toBe(true);
+  });
+
+  it("treats tabs and newlines as blank spaces, not as password characters", () => {
+    expect(passwordStrengthError("\t \n \r\n     ")).toBe(PASSWORD_WHITESPACE_MESSAGE);
+  });
+
+  it("ignores surrounding whitespace but hashes embedded spaces exactly", async () => {
+    const hash = await hashPassword("  pass word1  ");
+
+    expect(await verifyPassword("pass word1", hash)).toBe(true);
+    expect(await verifyPassword("  pass word1  ", hash)).toBe(true);
+    expect(await verifyPassword("password1", hash)).toBe(false);
   });
 });
 
@@ -54,6 +68,11 @@ describe("signup validation messages", () => {
     expect(signupValidationMessage({ ...valid, password: "          " })).toBe(
       PASSWORD_WHITESPACE_MESSAGE
     );
+  });
+
+  it("accepts an embedded space and ignores surrounding whitespace during signup", () => {
+    expect(signupValidationMessage({ ...valid, password: "pass word1" })).toBeNull();
+    expect(signupValidationMessage({ ...valid, password: "  pass word1  " })).toBeNull();
   });
 
   it("reads the first field error instead of a generic fallback", () => {

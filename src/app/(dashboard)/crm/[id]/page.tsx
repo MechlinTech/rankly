@@ -16,6 +16,9 @@ import {
   validateCompanyNotes,
   cleanDomain,
   formatCrmError,
+  contactFieldErrorsFromApi,
+  CONTACT_PHONE_MAX_LENGTH,
+  type ContactFieldErrors,
 } from "@/lib/crm/validation";
 
 type Stage = "LEAD" | "PROSPECT" | "CLIENT" | "CHURNED";
@@ -115,13 +118,7 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
   const [contactPhone, setContactPhone] = useState("");
   const [contactTitle, setContactTitle] = useState("");
   const [contactFormExpanded, setContactFormExpanded] = useState(false);
-  const [contactFieldErrors, setContactFieldErrors] = useState<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    title?: string;
-    general?: string;
-  }>({});
+  const [contactFieldErrors, setContactFieldErrors] = useState<ContactFieldErrors>({});
   const [addingContact, setAddingContact] = useState(false);
   const [deletingContactId, setDeletingContactId] = useState<string | null>(null);
 
@@ -263,9 +260,9 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
-        setContactFieldErrors({
-          general: formatCrmError(data?.error, "Couldn't add contact. Please review fields."),
-        });
+        setContactFieldErrors(
+          contactFieldErrorsFromApi(data?.error, "Couldn't add contact. Please review fields.")
+        );
         return;
       }
       setContactName("");
@@ -1106,8 +1103,8 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                       value={contactTitle}
                       onChange={(e) => {
                         setContactTitle(e.target.value);
-                        if (contactFieldErrors.title) {
-                          setContactFieldErrors((prev) => ({ ...prev, title: undefined }));
+                        if (contactFieldErrors.title || contactFieldErrors.general) {
+                          setContactFieldErrors((prev) => ({ ...prev, title: undefined, general: undefined }));
                         }
                       }}
                       placeholder="e.g. VP Marketing, Founder"
@@ -1134,16 +1131,19 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ id: st
                       id={contactPhoneId}
                       value={contactPhone}
                       type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      maxLength={CONTACT_PHONE_MAX_LENGTH}
                       onChange={(e) => {
                         setContactPhone(e.target.value);
-                        if (contactFieldErrors.phone) {
-                          setContactFieldErrors((prev) => ({ ...prev, phone: undefined }));
+                        if (contactFieldErrors.phone || contactFieldErrors.general) {
+                          setContactFieldErrors((prev) => ({ ...prev, phone: undefined, general: undefined }));
                         }
                       }}
                       placeholder="+1 (555) 019-2834"
                       aria-label="Contact phone"
                       aria-invalid={Boolean(contactFieldErrors.phone)}
-                      aria-describedby={contactPhoneId ? `${contactPhoneId}-error` : undefined}
+                      aria-describedby={contactFieldErrors.phone ? `${contactPhoneId}-error` : undefined}
                     />
                     {contactFieldErrors.phone && (
                       <p
