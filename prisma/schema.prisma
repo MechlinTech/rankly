@@ -323,21 +323,69 @@ model AiVisibilitySnapshot {
   @@index([projectId, engine, capturedAt])
 }
 
-// ---------- AI usage / governance (model abstraction logging) ----------
+// ---------- AI usage / governance (model abstraction logging & global provider config) ----------
+
+enum AiProviderType {
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  XAI
+  OPENAI_COMPATIBLE
+}
+
+enum AiHealthStatus {
+  CONNECTED
+  DEGRADED
+  DISCONNECTED
+  NOT_CONFIGURED
+  UNKNOWN
+}
+
+model AiProviderConfig {
+  id                   String          @id @default(cuid())
+  providerType         AiProviderType
+  displayName          String
+  encryptedApiKey      String
+  maskedApiKey         String
+  baseUrl              String?
+  defaultModel         String
+  isActive             Boolean         @default(true)
+  isDefault            Boolean         @default(false)
+  isFallback           Boolean         @default(false)
+  fallbackPriority     Int             @default(0)
+  healthStatus         AiHealthStatus  @default(UNKNOWN)
+  lastHealthCheck      DateTime?
+  lastSuccessfulCheck  DateTime?
+  lastLatencyMs        Int?
+  lastErrorMessage     String?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+  createdById          String?
+  updatedById          String?
+
+  @@index([isActive, isDefault])
+  @@index([healthStatus])
+}
 
 model AiActivityLog {
-  id          String   @id @default(cuid())
-  tenantId    String
-  userId      String?
-  feature     String   // e.g. "content-assistant", "keyword-clustering"
-  provider    String
-  model       String
-  promptTokens Int
-  completionTokens Int
-  costUsd     Float?
-  createdAt   DateTime @default(now())
+  id               String   @id @default(cuid())
+  tenantId         String?  // null when invoked in system/admin diagnostic context
+  userId           String?
+  feature          String   // e.g. "admin-diagnostic", "content-assistant", "keyword-clustering"
+  provider         String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  durationMs       Int?
+  costUsd          Float?
+  isFallback       Boolean  @default(false)
+  status           String   @default("SUCCESS")
+  errorMessage     String?
+  createdAt        DateTime @default(now())
 
   @@index([tenantId, createdAt])
+  @@index([provider, createdAt])
 }
 
 // ---------- CRM / business workspace ----------
