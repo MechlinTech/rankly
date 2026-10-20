@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { resetThemeToLight } from "@/components/theme-toggle";
 
 interface LogoutButtonProps {
   className?: string;
@@ -21,6 +22,9 @@ export function LogoutButton({
     setLoading(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      // Logging out ends the themed session and returns the next visit to the
+      // default light theme.
+      resetThemeToLight();
       // replace() removes the authenticated page from history, so Back cannot
       // restore the dashboard from Chrome's bfcache after logging out.
       router.replace("/login");

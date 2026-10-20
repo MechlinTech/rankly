@@ -10,6 +10,62 @@ test.describe("auth flow (real browser)", () => {
     await expect(page.getByText(user.email)).toBeVisible();
   });
 
+  test("password visibility toggle shows an icon matching the current state", async ({ page }) => {
+    await page.goto("/login");
+
+    const input = page.locator('input[autocomplete="current-password"]');
+    const toggle = page.locator('button[aria-label="Show password"], button[aria-label="Hide password"]');
+
+    await input.fill("secret-password");
+    await expect(input).toHaveAttribute("type", "password");
+    await expect(toggle).toHaveAttribute("aria-label", "Show password");
+    // Eye-off icon has no pupil circle; the open eye does.
+    await expect(toggle.locator("svg circle")).toHaveCount(0);
+
+    await toggle.click();
+    await expect(input).toHaveAttribute("type", "text");
+    await expect(toggle).toHaveAttribute("aria-label", "Hide password");
+    await expect(toggle.locator("svg circle")).toHaveCount(1);
+    await expect(input).toHaveValue("secret-password");
+
+    await toggle.click();
+    await expect(input).toHaveAttribute("type", "password");
+    await expect(toggle).toHaveAttribute("aria-label", "Show password");
+    await expect(toggle.locator("svg circle")).toHaveCount(0);
+  });
+
+  test("logging out resets the next visit to light mode without disabling theme switching", async ({ page }) => {
+    await signUpViaUI(page);
+
+    await page.getByRole("button", { name: "Dark mode" }).first().click();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(true);
+
+    await logout(page);
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(false);
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("theme"))).toBe("light");
+
+    // A fresh load uses the stored light theme, not the previous dark choice.
+    await page.reload();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(false);
+
+    // Normal switching still works after the reset.
+    await page.goto("/");
+    await page.getByRole("button", { name: "Dark mode" }).click();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(true);
+    await page.getByRole("button", { name: "Light mode" }).click();
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.classList.contains("dark")))
+      .toBe(false);
+  });
+
   test("logging out redirects to /login, and the dashboard is no longer reachable", async ({ page }) => {
     await signUpViaUI(page);
 
