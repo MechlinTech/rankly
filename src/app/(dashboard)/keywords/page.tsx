@@ -127,9 +127,11 @@ export default function KeywordResearchPage() {
           title="Results"
           description={
             result?.isMockData
-              ? result.dataProvider?.includes("fallback")
-                ? `Live provider (${result.dataProvider.replace(" (fallback: mock)", "")}) timed out or failed. Showing simulated data.`
-                : "Showing simulated mock data — no keyword data provider is connected yet."
+              ? result.providerError
+                ? `Live provider (${result.dataProvider.replace(" (fallback: mock)", "")}) error: "${result.providerError}". Showing simulated data.`
+                : result.dataProvider?.includes("fallback")
+                  ? `Live provider (${result.dataProvider.replace(" (fallback: mock)", "")}) timed out or failed. Showing simulated data.`
+                  : "Showing simulated mock data — no keyword data provider is connected yet."
               : result?.dataProvider === "dataforseo"
                 ? "Live keyword suggestions, search volume, difficulty, and CPC from DataForSEO."
                 : result

@@ -6,6 +6,7 @@ export interface KeywordResearchResult {
   locale: string;
   dataProvider: string;
   isMockData: boolean;
+  providerError?: string | null;
   seed: KeywordMetrics;
   related: KeywordMetrics[];
 }
@@ -44,6 +45,7 @@ export async function researchKeyword(seedTerm: string, locale = "en-US"): Promi
     };
   } catch (err) {
     if (!provider.isMock) {
+      const providerError = err instanceof Error ? err.message : String(err);
       console.warn(`[researchKeyword] Live keyword provider "${provider.name}" failed; falling back to mock provider:`, err);
       const mock = new MockKeywordDataProvider();
       const relatedTerms = await mock.getRelatedKeywords(seedTerm);
@@ -54,6 +56,7 @@ export async function researchKeyword(seedTerm: string, locale = "en-US"): Promi
         locale,
         dataProvider: `${provider.name} (fallback: mock)`,
         isMockData: true,
+        providerError,
         seed: seed ?? {
           term: seedTerm,
           locale,

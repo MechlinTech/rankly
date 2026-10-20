@@ -1,6 +1,7 @@
 import type { KeywordDataProvider, KeywordMetrics } from "./types";
 
-const API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/keyword_suggestions/live";
+const API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/google/keyword_suggestions/live";
+const LEGACY_API_URL = "https://api.dataforseo.com/v3/dataforseo_labs/keyword_suggestions/live";
 const LOCATION_CODES: Record<string, number> = {
   US: 2840, GB: 2826, IN: 2356, CA: 2124, AU: 2036, DE: 2276, FR: 2250,
   ES: 2724, IT: 2380, BR: 2076, JP: 2392, NL: 2528, SG: 2702, AE: 2784,
@@ -26,11 +27,13 @@ interface DataForSeoResponse {
   }>;
 }
 
-function localeParts(locale: string): { languageCode?: string; locationCode?: number } {
-  const [language, region] = locale.split("-");
+function localeParts(locale: string): { languageCode: string; locationCode: number } {
+  const [language, region] = (locale || "en-US").split("-");
+  const regionUpper = region?.toUpperCase();
+  const locationCode = regionUpper && LOCATION_CODES[regionUpper] ? LOCATION_CODES[regionUpper] : LOCATION_CODES.US;
   return {
-    languageCode: language?.toLowerCase() || undefined,
-    locationCode: region ? LOCATION_CODES[region.toUpperCase()] : undefined,
+    languageCode: language?.toLowerCase() || "en",
+    locationCode,
   };
 }
 
@@ -60,26 +63,52 @@ export class DataForSeoKeywordProvider implements KeywordDataProvider {
 
   async getRelatedKeywords(term: string, locale: string, limit = 10): Promise<string[]> {
     const keyword = term.trim();
-    if (keyword.length < 3 || limit <= 0) return [];
+    if (keyword.length < 2 || limit <= 0) return [];
 
     const { languageCode, locationCode } = localeParts(locale);
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${Buffer.from(`${this.login.trim()}:${this.password.trim()}`).toString("base64")}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify([{
-        keyword,
-        ...(languageCode ? { language_code: languageCode } : {}),
-        ...(locationCode ? { location_code: locationCode } : {}),
-        include_seed_keyword: true,
-        exact_match: false,
-        limit: Math.min(limit, 100),
-      }]),
-      signal: AbortSignal.timeout(20000),
-    });
+    const authHeader = `Basic ${Buffer.from(`${this.login.trim()}:${this.password.trim()}`).toString("base64")}`;
+    const requestBody = JSON.stringify([{
+      keyword,
+      language_code: languageCode,
+      location_code: locationCode,
+      include_seed_keyword: true,
+      exact_match: false,
+      limit: Math.min(limit, 100),
+    }]);
+
+    let response: Response;
+    try {
+      response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: authHeader,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: requestBody,
+        signal: AbortSignal.timeout(20000),
+      });
+
+      if (response.status === 404) {
+        response = await fetch(LEGACY_API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: authHeader,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: requestBody,
+          signal: AbortSignal.timeout(20000),
+        });
+      }
+    } catch (fetchErr) {
+      const isTimeout = fetchErr instanceof Error && fetchErr.name === "TimeoutError";
+      throw new Error(
+        isTimeout
+          ? "DataForSEO request timed out after 20 seconds."
+          : `DataForSEO connection failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`DataForSEO keyword lookup failed (HTTP ${response.status}). Check the DataForSEO credentials and account balance.`);
