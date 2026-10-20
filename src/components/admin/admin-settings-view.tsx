@@ -252,6 +252,17 @@ export function AdminSettingsView() {
       return;
     }
 
+    if (integration.id === "dataforseo" && !integration.isConfigured && (!keyVal || !extraVal)) {
+      setCardStates((prev) => ({
+        ...prev,
+        [integration.id]: {
+          ...prev[integration.id],
+          saveMessage: "Please provide both DataForSEO API Login and API Password before saving.",
+        },
+      }));
+      return;
+    }
+
     setCardStates((prev) => ({
       ...prev,
       [integration.id]: { ...prev[integration.id], isSaving: true, saveMessage: null },
@@ -518,7 +529,7 @@ export function AdminSettingsView() {
                 <div className="mt-4 flex flex-col gap-3">
                   <div>
                     <label className="mb-1 flex items-center justify-between text-xs font-medium text-slate-600 dark:text-slate-400">
-                      <span>Primary API Key</span>
+                      <span>{item.keyLabel || "Primary API Key"}</span>
                       {item.isConfigured && item.maskedValue && (
                         <span className="font-mono text-[10px] text-slate-400" title="Active configured key">
                           Active: {item.maskedValue}
@@ -526,10 +537,10 @@ export function AdminSettingsView() {
                       )}
                     </label>
                     <Input
-                      type="password"
+                      type={item.id === "dataforseo" ? "text" : "password"}
                       value={state.keyInput}
                       onChange={(e) => updateCardField(item.id, "keyInput", e.target.value)}
-                      placeholder={item.isConfigured ? "Enter new key to update..." : item.placeholder}
+                      placeholder={item.isConfigured ? (item.keyLabel ? `Enter new ${item.keyLabel.toLowerCase()} to update...` : "Enter new key to update...") : item.placeholder}
                       className="font-mono text-xs"
                     />
                   </div>
@@ -633,7 +644,7 @@ export function AdminSettingsView() {
                   disabled={state.isSaving || (!state.keyInput.trim() && !state.extraInput.trim())}
                   className="cursor-pointer"
                 >
-                  {state.isSaving ? "Saving…" : "Save Key"}
+                  {state.isSaving ? "Saving…" : item.extraKey ? "Save Credentials" : "Save Key"}
                 </Button>
               </div>
             </Card>
