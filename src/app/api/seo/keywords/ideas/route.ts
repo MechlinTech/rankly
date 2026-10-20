@@ -5,6 +5,13 @@ import { suspensionCheck } from "@/lib/auth/suspension";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { executeAiCompletion } from "@/lib/ai/provider-registry";
 import { parseAiJsonObject } from "@/lib/ai/parse-json";
+import {
+  AiError,
+  QuotaExhaustedError,
+  RateLimitError,
+  NoProviderConfiguredError,
+  NetworkTimeoutError,
+} from "@/lib/ai/errors";
 
 export const dynamic = "force-dynamic";
 
@@ -56,11 +63,11 @@ export async function POST(req: NextRequest) {
     try {
       output = parseAiJsonObject(result.text);
     } catch {
-      return NextResponse.json({ error: "The AI provider returned an unreadable response. Please retry." }, { status: 502 });
+      return NextResponse.json({ error: "The AI provider returned an unreadable response. Please retry." }, { status: 503 });
     }
     const validated = ideasSchema.safeParse(output);
     if (!validated.success) {
-      return NextResponse.json({ error: "The AI provider returned invalid keyword ideas. Please retry." }, { status: 502 });
+      return NextResponse.json({ error: "The AI provider returned invalid keyword ideas. Please retry." }, { status: 503 });
     }
 
     return NextResponse.json({
@@ -71,7 +78,23 @@ export async function POST(req: NextRequest) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI keyword research failed.";
-    const status = message.toLowerCase().includes("no active ai provider") ? 503 : 502;
+    let status = 500;
+    if (
+      err instanceof QuotaExhaustedError ||
+      err instanceof RateLimitError ||
+      /quota|rate limit|resource_exhausted/i.test(message)
+    ) {
+      status = 429;
+    } else if (
+      err instanceof NoProviderConfiguredError ||
+      message.toLowerCase().includes("no active ai provider")
+    ) {
+      status = 503;
+    } else if (err instanceof NetworkTimeoutError) {
+      status = 504;
+    } else if (err instanceof AiError && typeof err.statusCode === "number") {
+      status = err.statusCode === 502 ? 503 : err.statusCode;
+    }
     return NextResponse.json({ error: message }, { status });
   }
 }
