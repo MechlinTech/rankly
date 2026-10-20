@@ -20,7 +20,7 @@ describe("researchKeyword", () => {
           searchVolume: 1000,
           difficulty: 40,
           cpc: 2.5,
-          intent: "commercial",
+          intent: "commercial" as const,
         }))
       ),
     };
