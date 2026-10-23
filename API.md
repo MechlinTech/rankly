@@ -10,8 +10,8 @@ All routes are Next.js Route Handlers under `src/app/api/`. No public API versio
 | `/api/auth/login` | POST | public | `{ email, password }`. Rate-limited per IP and per email. |
 | `/api/auth/logout` | POST | session | Revokes the current session. |
 | `/api/auth/me` | GET | public (returns `user: null` if unauthenticated) | Current user/tenant/role. |
-| `/api/auth/oauth/{google,microsoft}/start` | GET | public | Redirects to the provider with state, nonce and PKCE. Redirects to `/login?error=oauth_not_configured` if credentials are missing/invalid; rate-limited per IP. |
-| `/api/auth/oauth/{google,microsoft}/callback` | GET | public | One-time state/nonce/PKCE validation, provider token exchange, ID-token validation, account linking/user creation, then a DB-backed session. Failures redirect to `/login?error=...` without exposing provider data. |
+| `/api/auth/oauth/{google,microsoft}/start` | GET | public | Redirects to the provider with state, nonce and PKCE. Redirects to `/login?error=oauth_not_configured` if credentials are missing and `/login?error=oauth_configuration_error` if `APP_URL`/the redirect override is invalid; rate-limited per IP. |
+| `/api/auth/oauth/{google,microsoft}/callback` | GET | public | One-time state/nonce/PKCE validation, provider token exchange, ID-token validation, account linking/user creation, then a DB-backed session. Failures redirect to `/login?error=...` without exposing provider data. `/api/auth/callback/{google,microsoft}` is a backward-compatible alias for existing app registrations. |
 
 ## Invitations — `src/app/api/invite/[token]/`
 

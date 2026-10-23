@@ -66,6 +66,10 @@ Once you set `GOOGLE_CLIENT_ID`/`MICROSOFT_CLIENT_ID`, register these exact call
 - Google Cloud Console → Credentials → OAuth client → Authorized redirect URIs: `https://<your-domain>/api/auth/oauth/google/callback`
 - Microsoft Entra ID → App registrations → your app → Authentication → Redirect URIs: `https://<your-domain>/api/auth/oauth/microsoft/callback`
 
+`GOOGLE_REDIRECT_URI` / `MICROSOFT_REDIRECT_URI` are optional overrides for deployments that must use an existing registered URI. The value must point at a callback route this app serves: either the canonical `/api/auth/oauth/<provider>/callback` or the legacy `/api/auth/callback/<provider>` alias. Any other path, query string, or non-HTTPS production URL fails closed with `oauth_configuration_error` instead of pretending SSO is disabled.
+
+Both providers are optional. Leave their credentials unset to intentionally disable SSO; the login page keeps email/password working and shows the "Single sign-on isn't configured for this deployment" message.
+
 ### Microsoft Entra ID (Microsoft 365) checklist
 
 1. **App registration** → create (or reuse) an app. Copy the **Application (client) ID** to `MICROSOFT_CLIENT_ID`.
@@ -114,6 +118,7 @@ Run a separate `.env` (separate `DATABASE_URL`, separate Stripe test-mode keys, 
 ## Troubleshooting
 
 - **App won't start**: check `DATABASE_URL` is set and reachable (`src/lib/db.ts` throws immediately if it's missing).
-- **OAuth redirect mismatch error**: the callback URL registered with Google/Microsoft must match the app's actual public origin exactly, including `https://` and no trailing slash.
+- **OAuth redirect mismatch error**: the callback URL registered with Google/Microsoft must match the app's actual public origin exactly, including `https://` and no trailing slash. Check the app logs for `[oauth] Sign-in failed` — `configuration_error` means `APP_URL` or a `*_REDIRECT_URI` override points at a path this app does not serve. `oauth_not_configured` means the provider client ID/secret is genuinely missing.
+- **`oauth_configuration_error` on /login**: fix `APP_URL` or the provider redirect override. The canonical callbacks are `/api/auth/oauth/google/callback` and `/api/auth/oauth/microsoft/callback`; `/api/auth/callback/<provider>` remains supported as a legacy alias.
 - **Stripe webhook 400s**: usually a signature mismatch — confirm `STRIPE_WEBHOOK_SECRET` matches the specific webhook endpoint's signing secret in the Stripe Dashboard (each endpoint has its own).
 - **Migration errors on deploy**: never run `prisma migrate dev` in production; if migration history is out of sync, use `prisma migrate resolve` deliberately and cautiously (see Prisma's own migration troubleshooting docs) rather than resetting the database.

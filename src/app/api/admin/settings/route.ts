@@ -4,6 +4,7 @@ import { maskApiKey } from "@/lib/admin/settings-tester";
 import { getIntegrationCredential, getOpenSerpCredential, saveIntegrationCredentials } from "@/lib/admin/integration-credentials";
 import { prisma } from "@/lib/db";
 import { DecryptionError, EncryptionConfigError } from "@/lib/crypto/encryption";
+import { normalizeMicrosoftTenantId } from "@/lib/auth/oauth/microsoft-oidc";
 import { z } from "zod";
 
 export interface IntegrationConfig {
@@ -44,6 +45,13 @@ export async function GET() {
     getIntegrationCredential("MICROSOFT_CLIENT_ID"),
     getIntegrationCredential("MICROSOFT_CLIENT_SECRET"),
   ]);
+  const msTenant = await getIntegrationCredential("MICROSOFT_TENANT_ID");
+  let msTenantValid = true;
+  try {
+    normalizeMicrosoftTenantId(msTenant);
+  } catch {
+    msTenantValid = false;
+  }
 
   let aiTotal = 0;
   let aiActive = 0;
@@ -118,7 +126,7 @@ export async function GET() {
       envKey: "GOOGLE_CLIENT_ID",
       extraKey: "GOOGLE_CLIENT_SECRET",
       extraLabel: "Client Secret",
-      isConfigured: Boolean(googleClientId?.trim()),
+      isConfigured: Boolean(googleClientId?.trim() && googleSecret?.trim()),
       maskedValue: googleClientId ?? null,
       maskedExtraValue: maskApiKey(googleSecret),
       placeholder: "your-app-id.apps.googleusercontent.com",
@@ -131,7 +139,7 @@ export async function GET() {
       envKey: "MICROSOFT_CLIENT_ID",
       extraKey: "MICROSOFT_CLIENT_SECRET",
       extraLabel: "Client Secret",
-      isConfigured: Boolean(msClientId?.trim() && msSecret?.trim()),
+      isConfigured: Boolean(msClientId?.trim() && msSecret?.trim() && msTenantValid),
       maskedValue: msClientId ?? null,
       maskedExtraValue: maskApiKey(msSecret),
       placeholder: "00000000-0000-0000-0000-000000000000",
