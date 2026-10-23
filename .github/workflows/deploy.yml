@@ -209,7 +209,7 @@ jobs:
           MICROSOFT_REDIRECT_URI: ${{ secrets.MICROSOFT_REDIRECT_URI }}
         run: |
           $ErrorActionPreference = "Stop"
-          foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
+          foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL","APP_ENCRYPTION_KEY")) {
             if (-not [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { continue }
             throw "Set $name on the production environment"
           }
