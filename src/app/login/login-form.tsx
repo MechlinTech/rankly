@@ -10,6 +10,13 @@ import { PasswordField } from "@/components/password-field";
 const AUTH_ERROR_MESSAGES: Record<string, string> = {
   oauth_state: "That sign-in link expired or was invalid. Please try again.",
   oauth_failed: "Sign-in didn't go through. Please try again.",
+  oauth_cancelled: "Sign-in was cancelled. You can try again or use your email and password.",
+  oauth_expired: "Your sign-in session expired. Please try again.",
+  oauth_not_configured: "Single sign-on isn't configured for this deployment. Use your email and password or contact your administrator.",
+  oauth_unavailable: "Single sign-on is temporarily unavailable. Please try again in a moment.",
+  oauth_account_conflict: "We couldn't match this account safely. Try another sign-in method or contact support.",
+  oauth_rate_limited: "Too many sign-in attempts. Please wait a few minutes and try again.",
+  oauth_server_error: "Sign-in failed because of a server error. Please try again.",
   no_workspace: "Your account isn't attached to an active workspace. Contact support.",
 };
 
@@ -113,7 +120,7 @@ export function LoginForm() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Welcome back.</p>
 
         <div className="mt-6">
-          <OAuthButtons />
+          <OAuthButtons next={nextParam} />
         </div>
 
         <div className="my-5 flex items-center gap-3 text-xs text-slate-500">
