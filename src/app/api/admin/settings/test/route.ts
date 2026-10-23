@@ -138,7 +138,10 @@ export async function POST(req: NextRequest) {
           latencyMs: 0,
         });
       }
-      result = await testMicrosoftOAuth(activeClientId);
+      result = await testMicrosoftOAuth(
+        activeClientId,
+        await getIntegrationCredential("MICROSOFT_TENANT_ID"),
+      );
       break;
     }
   }

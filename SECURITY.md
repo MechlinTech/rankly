@@ -17,7 +17,8 @@ There is no dedicated security contact set up yet (pre-launch product). Until on
 | Input validation | `zod` schemas on every API route body |
 | Auth enumeration resistance | Generic error messages on login/signup |
 | Rate limiting | Per-tenant/per-IP/per-email, in-memory (`src/lib/auth/rate-limit.ts`) — see Known Gaps |
-| OAuth CSRF protection | Random `state` stored in a short-lived httpOnly cookie, validated byte-for-byte on callback (`src/lib/auth/oauth/handler.ts`) |
+| OAuth CSRF / login CSRF protection | One-time random `state` stored in a short-lived httpOnly `__Host-` cookie (production), compared in constant time; OIDC `nonce` and PKCE S256 bind the ID token/code to the request; post-login `next` paths are validated server-side against open redirects (`src/lib/auth/oauth/handler.ts`, `state.ts`) |
+| Microsoft OIDC token validation | RS256 signature against Entra JWKS, plus issuer, audience, tenant (`tid`), nonce, `nbf`/`iat`/`exp` validation before any session or account link (`src/lib/auth/oauth/microsoft-oidc.ts`). Microsoft access/refresh tokens are never stored or logged. |
 | Webhook authenticity | Stripe signature verification via `stripe.webhooks.constructEvent` (`src/lib/billing/stripe.ts`), plus idempotency by event ID |
 | Tenant suspension | Enforced at both the dashboard layout and every SEO/team API route (`suspensionCheck()`), not cosmetic — verified in `KNOWN_LIMITATIONS.md` |
 | Least privilege | No self-service path to super admin; owner-only controls for owner-level membership changes; last-owner protection prevents a tenant being left without an owner |

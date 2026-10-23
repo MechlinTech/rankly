@@ -1,4 +1,9 @@
-import type { OAuthProviderAdapter, OAuthUserInfo } from "./types";
+import type {
+  OAuthAuthorizationOptions,
+  OAuthExchangeOptions,
+  OAuthProviderAdapter,
+  OAuthUserInfo,
+} from "./types";
 import { getIntegrationCredential } from "@/lib/admin/integration-credentials";
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -22,7 +27,11 @@ export const googleOAuthAdapter: OAuthProviderAdapter = {
     return !!(clientId && clientSecret);
   },
 
-  async getAuthorizationUrl(state: string, redirectUri: string) {
+  async getAuthorizationUrl(
+    state: string,
+    redirectUri: string,
+    options: OAuthAuthorizationOptions = {},
+  ) {
     const clientId = await getIntegrationCredential("GOOGLE_CLIENT_ID");
     if (!clientId) throw new Error("GOOGLE_CLIENT_ID is not configured.");
     const params = new URLSearchParams({
@@ -34,25 +43,39 @@ export const googleOAuthAdapter: OAuthProviderAdapter = {
       access_type: "online",
       prompt: "select_account",
     });
+    if (options.nonce) params.set("nonce", options.nonce);
+    if (options.codeChallenge) {
+      params.set("code_challenge", options.codeChallenge);
+      params.set("code_challenge_method", "S256");
+    }
     return `${AUTH_URL}?${params.toString()}`;
   },
 
-  async exchangeCodeForUser(code: string, redirectUri: string): Promise<OAuthUserInfo> {
+  async exchangeCodeForUser(
+    code: string,
+    redirectUri: string,
+    options: OAuthExchangeOptions = {},
+  ): Promise<OAuthUserInfo> {
     const [clientId, clientSecret] = await Promise.all([
       getIntegrationCredential("GOOGLE_CLIENT_ID"),
       getIntegrationCredential("GOOGLE_CLIENT_SECRET"),
     ]);
     if (!clientId || !clientSecret) throw new Error("Google OAuth credentials are not configured.");
+
+    const tokenBody = new URLSearchParams({
+      code,
+      client_id: clientId,
+      client_secret: clientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code",
+    });
+    if (options.codeVerifier) tokenBody.set("code_verifier", options.codeVerifier);
+
     const tokenRes = await fetch(TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code",
-      }),
+      body: tokenBody,
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!tokenRes.ok) {
@@ -62,6 +85,7 @@ export const googleOAuthAdapter: OAuthProviderAdapter = {
 
     const userRes = await fetch(USERINFO_URL, {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!userRes.ok) {
       throw new Error("Failed to fetch Google user info.");
@@ -76,6 +100,7 @@ export const googleOAuthAdapter: OAuthProviderAdapter = {
       providerUserId: profile.sub,
       email: profile.email,
       name: profile.name ?? null,
+      emailVerified: profile.email_verified === true,
     };
   },
 };

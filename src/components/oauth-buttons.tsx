@@ -32,18 +32,19 @@ export function MicrosoftLogo({ className = "h-[18px] w-[18px] shrink-0" }: { cl
   );
 }
 
-export function OAuthButtons() {
+export function OAuthButtons({ next }: { next?: string | null }) {
+  const nextQuery = next ? `?next=${encodeURIComponent(next)}` : "";
   return (
     <div className="flex flex-col gap-2">
       <a
-        href="/api/auth/oauth/google/start"
+        href={`/api/auth/oauth/google/start${nextQuery}`}
         className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <GoogleLogo />
         Continue with Google
       </a>
       <a
-        href="/api/auth/oauth/microsoft/start"
+        href={`/api/auth/oauth/microsoft/start${nextQuery}`}
         className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         <MicrosoftLogo />
