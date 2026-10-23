@@ -14,6 +14,9 @@
 #   POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB, DATABASE_URL
 #   RESEND_API_KEY, EMAIL_FROM
 #   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
+#   APP_ENCRYPTION_KEY
+#   MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET (optional; enables Microsoft 365 SSO)
+#   MICROSOFT_TENANT_ID (optional; defaults to common), MICROSOFT_REDIRECT_URI (optional override)
 #     (dev defaults to admin@rankly.local / RanklyAdmin1 if unset)
 
 name: Deploy
@@ -71,6 +74,10 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
           APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
+          MICROSOFT_REDIRECT_URI: ${{ secrets.MICROSOFT_REDIRECT_URI }}
         run: |
           $ErrorActionPreference = "Stop"
           foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
@@ -103,6 +110,10 @@ jobs:
             "ADMIN_PASSWORD=$adminPassword"
             "ADMIN_NAME=$adminName"
             "APP_ENCRYPTION_KEY=$env:APP_ENCRYPTION_KEY"
+            "MICROSOFT_CLIENT_ID=$env:MICROSOFT_CLIENT_ID"
+            "MICROSOFT_CLIENT_SECRET=$env:MICROSOFT_CLIENT_SECRET"
+            "MICROSOFT_TENANT_ID=$env:MICROSOFT_TENANT_ID"
+            "MICROSOFT_REDIRECT_URI=$env:MICROSOFT_REDIRECT_URI"
           )
           Set-Content -Path $envFile -Value $pairs -Encoding ascii
           Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
@@ -182,6 +193,7 @@ jobs:
       - name: Write env file from GitHub Environment secrets
         env:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          APP_URL: ${{ secrets.APP_URL }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -191,6 +203,10 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           ADMIN_NAME: ${{ secrets.ADMIN_NAME }}
           APP_ENCRYPTION_KEY: ${{ secrets.APP_ENCRYPTION_KEY }}
+          MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
+          MICROSOFT_REDIRECT_URI: ${{ secrets.MICROSOFT_REDIRECT_URI }}
         run: |
           $ErrorActionPreference = "Stop"
           foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL","APP_ENCRYPTION_KEY")) {
@@ -213,6 +229,7 @@ jobs:
           $envFile = Join-Path $env:RUNNER_TEMP "rankly.prod.env"
           $pairs = @(
             "POSTGRES_USER=$env:POSTGRES_USER"
+            "APP_URL=$env:APP_URL"
             "POSTGRES_PASSWORD=$env:POSTGRES_PASSWORD"
             "POSTGRES_DB=$env:POSTGRES_DB"
             "DATABASE_URL=$databaseUrl"
@@ -222,6 +239,10 @@ jobs:
             "ADMIN_PASSWORD=$adminPassword"
             "ADMIN_NAME=$adminName"
             "APP_ENCRYPTION_KEY=$env:APP_ENCRYPTION_KEY"
+            "MICROSOFT_CLIENT_ID=$env:MICROSOFT_CLIENT_ID"
+            "MICROSOFT_CLIENT_SECRET=$env:MICROSOFT_CLIENT_SECRET"
+            "MICROSOFT_TENANT_ID=$env:MICROSOFT_TENANT_ID"
+            "MICROSOFT_REDIRECT_URI=$env:MICROSOFT_REDIRECT_URI"
           )
           Set-Content -Path $envFile -Value $pairs -Encoding ascii
           Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
