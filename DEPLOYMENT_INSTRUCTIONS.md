@@ -64,7 +64,22 @@ See `ENVIRONMENT_VARIABLES.md` for the full list. The self-hosted GitHub Actions
 Once you set `GOOGLE_CLIENT_ID`/`MICROSOFT_CLIENT_ID`, register these exact callback URLs with each provider:
 
 - Google Cloud Console → Credentials → OAuth client → Authorized redirect URIs: `https://<your-domain>/api/auth/oauth/google/callback`
-- Azure Portal → App registrations → Authentication → Redirect URIs: `https://<your-domain>/api/auth/oauth/microsoft/callback`
+- Microsoft Entra ID → App registrations → your app → Authentication → Redirect URIs: `https://<your-domain>/api/auth/oauth/microsoft/callback`
+
+### Microsoft Entra ID (Microsoft 365) checklist
+
+1. **App registration** → create (or reuse) an app. Copy the **Application (client) ID** to `MICROSOFT_CLIENT_ID`.
+2. **Certificates & secrets** → create a client secret. Copy the secret *value* (not the secret ID) to `MICROSOFT_CLIENT_SECRET`. Rotate it before expiry and redeploy.
+3. **Authentication → Redirect URIs** → add the exact `https://<your-domain>/api/auth/oauth/microsoft/callback` URI. No trailing slash, query string, or wildcard. The scheme/host/path must match `APP_URL` (or `MICROSOFT_REDIRECT_URI` if you override it).
+4. **Authentication → Implicit grant and hybrid flows** → leave access/ID token issuance unchecked. This app uses the authorization-code flow, not implicit.
+5. **Authentication → Supported account types** → choose the audience that matches `MICROSOFT_TENANT_ID`:
+   - multi-tenant work/school + personal: `MICROSOFT_TENANT_ID=common`
+   - multi-tenant work/school only: `MICROSOFT_TENANT_ID=organizations` (recommended for Microsoft 365)
+   - single tenant: set `MICROSOFT_TENANT_ID` to your tenant GUID or verified tenant domain
+6. **API permissions** → Microsoft Graph → Delegated → `openid`, `profile`, `email`, `User.Read`, then **Grant admin consent** for the tenant (required for many Microsoft 365 tenants). The flow validates the ID token and uses `User.Read` only to read the mailbox address when the token has no usable email.
+7. **Optional hardening**: under Authentication, restrict who can sign in. Rankly auto-links a Microsoft identity to an existing account only when Microsoft asserts the email is verified; it does not bypass Rankly roles or workspace membership.
+
+The app sends `state`, `nonce`, and PKCE S256, validates the ID token signature against Entra's published keys plus issuer/audience/tenant/nonce/expiry, then creates a normal DB-backed Rankly session. No Microsoft access/refresh tokens are stored or logged.
 
 ## 6. Stripe configuration
 
