@@ -10,8 +10,8 @@ All routes are Next.js Route Handlers under `src/app/api/`. No public API versio
 | `/api/auth/login` | POST | public | `{ email, password }`. Rate-limited per IP and per email. |
 | `/api/auth/logout` | POST | session | Revokes the current session. |
 | `/api/auth/me` | GET | public (returns `user: null` if unauthenticated) | Current user/tenant/role. |
-| `/api/auth/oauth/{google,microsoft}/start` | GET | public | Redirects to the provider. Returns 501 if not configured. |
-| `/api/auth/oauth/{google,microsoft}/callback` | GET | public | OAuth callback; validates state, creates session. |
+| `/api/auth/oauth/{google,microsoft}/start` | GET | public | Redirects to the provider with state, nonce and PKCE. Redirects to `/login?error=oauth_not_configured` if credentials are missing/invalid; rate-limited per IP. |
+| `/api/auth/oauth/{google,microsoft}/callback` | GET | public | One-time state/nonce/PKCE validation, provider token exchange, ID-token validation, account linking/user creation, then a DB-backed session. Failures redirect to `/login?error=...` without exposing provider data. |
 
 ## Invitations — `src/app/api/invite/[token]/`
 

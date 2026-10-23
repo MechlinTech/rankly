@@ -20,10 +20,15 @@ export interface SessionMetadata {
   userAgent?: string | null;
 }
 
-function isSecureCookie(req?: NextRequest): boolean {
+export function isSecureCookie(req?: NextRequest): boolean {
   if (process.env.COOKIE_SECURE === "true") return true;
   if (process.env.COOKIE_SECURE === "false") return false;
-  if (req && req.nextUrl.protocol === "http:") return false;
+  if (req) {
+    const forwardedProto = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+    if (forwardedProto === "https") return true;
+    if (forwardedProto === "http") return false;
+    if (req.nextUrl.protocol === "http:") return false;
+  }
   return process.env.NODE_ENV === "production";
 }
 
