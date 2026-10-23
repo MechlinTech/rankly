@@ -273,7 +273,7 @@ export async function testGoogleOAuth(clientId: string): Promise<TestResult> {
   }
 }
 
-export async function testMicrosoftOAuth(clientId: string): Promise<TestResult> {
+export async function testMicrosoftOAuth(clientId: string, tenantId?: string | null): Promise<TestResult> {
   const start = Date.now();
   try {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -285,9 +285,19 @@ export async function testMicrosoftOAuth(clientId: string): Promise<TestResult> 
       };
     }
 
-    const res = await fetch("https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration", {
-      signal: AbortSignal.timeout(8000),
-    });
+    const tenant = tenantId?.trim() || "common";
+    if (!/^(common|organizations|consumers|[0-9a-f-]{36}|[a-z0-9.-]+)$/i.test(tenant)) {
+      return {
+        success: false,
+        message: "Invalid Microsoft tenant ID. Use common, organizations, consumers, a tenant GUID, or a verified domain.",
+        latencyMs: Date.now() - start,
+      };
+    }
+
+    const res = await fetch(
+      `https://login.microsoftonline.com/${encodeURIComponent(tenant)}/v2.0/.well-known/openid-configuration`,
+      { signal: AbortSignal.timeout(8000) },
+    );
 
     const latencyMs = Date.now() - start;
 
