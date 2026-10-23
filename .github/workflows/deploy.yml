@@ -17,6 +17,8 @@
 #   APP_ENCRYPTION_KEY
 #   MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET (optional; enables Microsoft 365 SSO)
 #   MICROSOFT_TENANT_ID (optional; defaults to common), MICROSOFT_REDIRECT_URI (optional override)
+#   GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (optional; enables Google SSO)
+#   GOOGLE_REDIRECT_URI (optional override)
 #     (dev defaults to admin@rankly.local / RanklyAdmin1 if unset)
 
 name: Deploy
@@ -78,6 +80,9 @@ jobs:
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
           MICROSOFT_REDIRECT_URI: ${{ secrets.MICROSOFT_REDIRECT_URI }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
         run: |
           $ErrorActionPreference = "Stop"
           foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL")) {
@@ -114,6 +119,9 @@ jobs:
             "MICROSOFT_CLIENT_SECRET=$env:MICROSOFT_CLIENT_SECRET"
             "MICROSOFT_TENANT_ID=$env:MICROSOFT_TENANT_ID"
             "MICROSOFT_REDIRECT_URI=$env:MICROSOFT_REDIRECT_URI"
+            "GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID"
+            "GOOGLE_CLIENT_SECRET=$env:GOOGLE_CLIENT_SECRET"
+            "GOOGLE_REDIRECT_URI=$env:GOOGLE_REDIRECT_URI"
           )
           Set-Content -Path $envFile -Value $pairs -Encoding ascii
           Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"
@@ -207,6 +215,9 @@ jobs:
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
           MICROSOFT_REDIRECT_URI: ${{ secrets.MICROSOFT_REDIRECT_URI }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
         run: |
           $ErrorActionPreference = "Stop"
           foreach ($name in @("POSTGRES_USER","POSTGRES_PASSWORD","POSTGRES_DB","DATABASE_URL","APP_ENCRYPTION_KEY")) {
@@ -243,6 +254,9 @@ jobs:
             "MICROSOFT_CLIENT_SECRET=$env:MICROSOFT_CLIENT_SECRET"
             "MICROSOFT_TENANT_ID=$env:MICROSOFT_TENANT_ID"
             "MICROSOFT_REDIRECT_URI=$env:MICROSOFT_REDIRECT_URI"
+            "GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID"
+            "GOOGLE_CLIENT_SECRET=$env:GOOGLE_CLIENT_SECRET"
+            "GOOGLE_REDIRECT_URI=$env:GOOGLE_REDIRECT_URI"
           )
           Set-Content -Path $envFile -Value $pairs -Encoding ascii
           Add-Content -Path $env:GITHUB_ENV -Value "RANKLY_ENV_FILE=$envFile"

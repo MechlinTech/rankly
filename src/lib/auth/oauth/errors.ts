@@ -5,6 +5,7 @@
  */
 export type OAuthErrorCode =
   | "not_configured"
+  | "configuration_error"
   | "cancelled"
   | "state_mismatch"
   | "expired"
@@ -50,8 +51,10 @@ export function oauthErrorCodeFromProvider(error: string | null): OAuthErrorCode
     case "unauthorized_client":
     case "invalid_client":
     case "unsupported_response_type":
-    case "invalid_request":
       return "not_configured";
+    case "invalid_request":
+    case "redirect_uri_mismatch":
+      return "configuration_error";
     default:
       return "token_exchange_failed";
   }
@@ -62,6 +65,8 @@ export function loginErrorFor(code: OAuthErrorCode): string {
   switch (code) {
     case "not_configured":
       return "oauth_not_configured";
+    case "configuration_error":
+      return "oauth_configuration_error";
     case "cancelled":
       return "oauth_cancelled";
     case "state_mismatch":

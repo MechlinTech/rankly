@@ -17,14 +17,15 @@ import {
   safeReturnPath,
 } from "./state";
 import { createCodeChallenge, createCodeVerifier } from "./pkce";
+import { resolveOAuthRedirectUri, type OAuthProviderSlug } from "./redirect-uri";
 
 const STATE_COOKIE_PREFIX = "rankly_oauth_state_";
 const OAUTH_START_LIMIT = 30;
 const OAUTH_CALLBACK_LIMIT = 120;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
-function isLocalHostname(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+function providerSlug(adapter: OAuthProviderAdapter): OAuthProviderSlug {
+  return adapter.name === "GOOGLE" ? "google" : "microsoft";
 }
 
 /**
@@ -32,58 +33,14 @@ function isLocalHostname(hostname: string): boolean {
  * then the canonical APP_URL, and only fall back to the request host in local
  * development. The value must be byte-identical between start and callback.
  */
-function redirectUriFor(req: NextRequest, provider: string): string {
-  const callbackPath = `/api/auth/oauth/${provider}/callback`;
-  const override = process.env[`${provider.toUpperCase()}_REDIRECT_URI`]?.trim();
-  const canonical = process.env.APP_URL?.trim();
-
-  const buildFromOrigin = (origin: string): string => {
-    try {
-      return new URL(callbackPath, origin).toString();
-    } catch {
-      throw new OAuthError("not_configured", "APP_URL is not a valid absolute URL");
-    }
-  };
-
-  if (override) {
-    let url: URL;
-    try {
-      url = new URL(override);
-    } catch {
-      throw new OAuthError("not_configured", `${provider}_REDIRECT_URI is not a valid absolute URL`);
-    }
-    if (
-      url.username ||
-      url.password ||
-      url.search ||
-      url.hash ||
-      url.pathname !== callbackPath
-    ) {
-      throw new OAuthError("not_configured", `${provider}_REDIRECT_URI must use ${callbackPath} with no query or hash`);
-    }
-    if (url.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && isLocalHostname(url.hostname))) {
-      throw new OAuthError("not_configured", `${provider}_REDIRECT_URI must use HTTPS in production`);
-    }
-    return url.toString();
-  }
-
-  if (canonical) {
-    let appUrl: URL;
-    try {
-      appUrl = new URL(canonical);
-    } catch {
-      throw new OAuthError("not_configured", "APP_URL is not a valid absolute URL");
-    }
-    if (appUrl.protocol !== "https:" && !(process.env.NODE_ENV !== "production" && isLocalHostname(appUrl.hostname))) {
-      throw new OAuthError("not_configured", "APP_URL must use HTTPS in production");
-    }
-    return buildFromOrigin(appUrl.origin);
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new OAuthError("not_configured", "APP_URL must be set in production for OAuth callbacks");
-  }
-  return buildFromOrigin(getAppUrl(req));
+function redirectUriFor(req: NextRequest, provider: OAuthProviderSlug): string {
+  return resolveOAuthRedirectUri({
+    provider,
+    appUrl: process.env.APP_URL,
+    override: process.env[`${provider.toUpperCase()}_REDIRECT_URI`],
+    nodeEnv: process.env.NODE_ENV,
+    requestOrigin: process.env.APP_URL?.trim() ? null : getAppUrl(req),
+  });
 }
 
 function loginUrl(req: NextRequest, error: string, next: string | null = null): URL {
@@ -292,7 +249,7 @@ export async function handleOAuthStart(req: NextRequest, adapter: OAuthProviderA
     const codeVerifier = createCodeVerifier();
     const codeChallenge = createCodeChallenge(codeVerifier);
     const next = safeReturnPath(req.nextUrl.searchParams.get("next"));
-    const redirectUri = redirectUriFor(req, adapter.name.toLowerCase());
+    const redirectUri = redirectUriFor(req, providerSlug(adapter));
 
     const authUrl = await adapter.getAuthorizationUrl(state, redirectUri, {
       nonce,
@@ -388,7 +345,7 @@ export async function handleOAuthCallback(req: NextRequest, adapter: OAuthProvid
     if (!(await adapter.isConfigured())) {
       return NextResponse.redirect(loginUrl(req, "oauth_not_configured", next), 303);
     }
-    userInfo = await adapter.exchangeCodeForUser(code, redirectUriFor(req, adapter.name.toLowerCase()), {
+    userInfo = await adapter.exchangeCodeForUser(code, redirectUriFor(req, providerSlug(adapter)), {
       codeVerifier: statePayload.codeVerifier,
       nonce: statePayload.nonce,
     });
