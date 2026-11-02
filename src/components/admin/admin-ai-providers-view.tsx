@@ -76,6 +76,7 @@ const PROVIDER_INFO: Record<
   ANTHROPIC: { label: "Anthropic Claude", badgeTone: "neutral", placeholder: "sk-ant-api03-...", desc: "Claude Sonnet, Haiku & Opus 5.5" },
   XAI: { label: "xAI Grok", badgeTone: "neutral", placeholder: "xai-...", desc: "Grok 4.7 & Grok 2" },
   OPENAI_COMPATIBLE: { label: "OpenAI-Compatible", badgeTone: "neutral", placeholder: "Bearer token or key...", desc: "DeepSeek V3/R1, GPT-OSS 120B, Llama" },
+  OLLAMA: { label: "Ollama (Self-Hosted)", badgeTone: "neutral", placeholder: "Optional API key (or leave blank)...", desc: "Self-hosted Ollama server (e.g. https://ollama2001.mechlintech.com)" },
 };
 
 export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: () => void }) {
@@ -193,7 +194,7 @@ export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: 
     setFormTestResult(null);
     setFormError(null);
     setShowApiKeyText(false);
-    setShowAdvanced(Boolean(provider.baseUrl && provider.providerType !== "OPENAI_COMPATIBLE"));
+    setShowAdvanced(Boolean(provider.baseUrl && provider.providerType !== "OPENAI_COMPATIBLE" && provider.providerType !== "OLLAMA"));
     setModalOpen(true);
   }
 
@@ -201,6 +202,9 @@ export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: 
     setFormType(newType);
     if (!editingProvider) {
       setFormDisplayName(PROVIDER_INFO[newType].label);
+    }
+    if (newType === "OLLAMA" && !formBaseUrl) {
+      setFormBaseUrl("https://ollama2001.mechlintech.com");
     }
     setFormModel(DEFAULT_MODELS[newType]);
     setCustomModelInput(false);
@@ -213,7 +217,7 @@ export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: 
     setFormError(null);
 
     const keyToTest = formApiKey.trim();
-    if (!keyToTest && !editingProvider) {
+    if (!keyToTest && !editingProvider && formType !== "OLLAMA") {
       setFormError("Enter an API key before testing connection.");
       setFormTesting(false);
       return;
@@ -266,7 +270,7 @@ export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: 
       return;
     }
 
-    if (!editingProvider && !formApiKey.trim()) {
+    if (!editingProvider && formType !== "OLLAMA" && !formApiKey.trim()) {
       setFormError("API key is required for new provider.");
       setFormSaving(false);
       return;
@@ -1023,6 +1027,30 @@ export function AdminAiProvidersView({ onProviderChange }: { onProviderChange?: 
               </div>
 
               {/* Custom Base URL (prominently shown when custom endpoint is selected) */}
+              {formType === "OLLAMA" && (
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Ollama Server URL <span className="text-rose-500">*</span>
+                    </label>
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                      Live server ready
+                    </span>
+                  </div>
+                  <Input
+                    type="url"
+                    required
+                    value={formBaseUrl}
+                    onChange={(e) => setFormBaseUrl(e.target.value)}
+                    placeholder="https://ollama2001.mechlintech.com"
+                    className="font-mono text-xs"
+                  />
+                  <p className="mt-1 text-[10px] text-slate-400">
+                    Ollama server URL. Connects to <code>/api/tags</code> for discovery and <code>/api/chat</code> for generation.
+                  </p>
+                </div>
+              )}
+
               {formType === "OPENAI_COMPATIBLE" && (
                 <div>
                   <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">

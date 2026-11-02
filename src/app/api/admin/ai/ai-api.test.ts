@@ -368,4 +368,78 @@ describe("Super Admin AI Provider API Handlers", () => {
     expect(updatedData!.isDefault).toBe(true);
     expect(updatedData!.isFallback).toBe(false);
   });
+  it("POST /api/admin/ai/providers creates an OLLAMA provider with optional API key and custom baseUrl", async () => {
+    vi.spyOn(authSuperAdmin, "requireSuperAdmin").mockResolvedValueOnce({
+      user: mockAdminUser(),
+      response: null,
+    });
+
+    let savedData: Partial<AiProviderConfig> | null = null;
+    vi.spyOn(prisma, "$transaction").mockImplementationOnce(async (callback) => {
+      const mockTx = {
+        aiProviderConfig: {
+          updateMany: vi.fn(),
+          create: vi.fn().mockImplementation(async (args: { data: Partial<AiProviderConfig> }) => {
+            savedData = args.data;
+            return mockProviderConfig({
+              id: "ollama-1",
+              ...args.data,
+            });
+          }),
+        },
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return callback(mockTx as any);
+    });
+
+    vi.spyOn(prisma.auditLog, "create").mockResolvedValueOnce({} as AuditLog);
+
+    const req = new NextRequest("http://localhost/api/admin/ai/providers", {
+      method: "POST",
+      body: JSON.stringify({
+        providerType: "OLLAMA",
+        displayName: "Self-Hosted Ollama",
+        baseUrl: "https://ollama2001.mechlintech.com",
+        defaultModel: "qwen2.5-coder:7b",
+        isDefault: false,
+      }),
+    });
+
+    const res = await createProvider(req);
+    expect(res.status).toBe(201);
+    expect(savedData).toBeDefined();
+    expect(savedData!.providerType).toBe("OLLAMA");
+    expect(savedData!.baseUrl).toBe("https://ollama2001.mechlintech.com");
+    expect(savedData!.maskedApiKey).toBe("None (Self-Hosted)");
+  });
+
+  it("POST /api/admin/ai/providers/test tests OLLAMA provider without requiring apiKey", async () => {
+    vi.spyOn(authSuperAdmin, "requireSuperAdmin").mockResolvedValueOnce({
+      user: mockAdminUser(),
+      response: null,
+    });
+
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        models: [{ name: "qwen2.5-coder:7b" }],
+      }),
+    });
+
+    const req = new NextRequest("http://localhost/api/admin/ai/providers/test", {
+      method: "POST",
+      body: JSON.stringify({
+        providerType: "OLLAMA",
+        baseUrl: "https://ollama2001.mechlintech.com",
+        model: "qwen2.5-coder:7b",
+      }),
+    });
+
+    const res = await testProvider(req);
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { success: boolean; status: string; availableModels?: string[] };
+    expect(data.success).toBe(true);
+    expect(data.status).toBe("CONNECTED");
+    expect(data.availableModels).toContain("qwen2.5-coder:7b");
+  });
 });

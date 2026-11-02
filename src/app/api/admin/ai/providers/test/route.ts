@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/lib/auth/super-admin";
 import { checkAndUpdateProviderHealth } from "@/lib/ai/health";
 import { createAiAdapter } from "@/lib/ai/provider-factory";
-import { DEFAULT_MODELS, type AiProviderType } from "@/lib/ai/types";
+import { DEFAULT_MODELS, DEFAULT_OLLAMA_URL, type AiProviderType } from "@/lib/ai/types";
 import { validateCustomEndpointUrl } from "@/lib/ai/ssrf";
 import { z } from "zod";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 const testProviderSchema = z.object({
   providerId: z.string().trim().optional(),
-  providerType: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "XAI", "OPENAI_COMPATIBLE"]).optional(),
+  providerType: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "XAI", "OPENAI_COMPATIBLE", "OLLAMA"]).optional(),
   apiKey: z.string().trim().optional(),
   model: z.string().trim().optional(),
   baseUrl: z.string().trim().nullable().optional(),
@@ -38,17 +38,30 @@ export async function POST(req: NextRequest) {
   }
 
   // Case 2: Test unsaved in-flight credentials
-  if (!providerType || !apiKey) {
+  if (!providerType) {
     return NextResponse.json(
-      { error: "providerType and apiKey are required when testing unsaved credentials." },
+      { error: "providerType is required when testing unsaved credentials." },
       { status: 400 }
     );
   }
 
+  const keyToUse = apiKey?.trim() || (providerType === "OLLAMA" ? "ollama" : "");
+  if (!keyToUse && providerType !== "OLLAMA") {
+    return NextResponse.json(
+      { error: "apiKey is required when testing unsaved credentials for cloud providers." },
+      { status: 400 }
+    );
+  }
+
+  let rawBaseUrl = baseUrl?.trim() || null;
+  if (!rawBaseUrl && providerType === "OLLAMA") {
+    rawBaseUrl = DEFAULT_OLLAMA_URL;
+  }
+
   let validatedBaseUrl: string | null = null;
-  if (baseUrl) {
+  if (rawBaseUrl) {
     try {
-      const url = validateCustomEndpointUrl(baseUrl);
+      const url = validateCustomEndpointUrl(rawBaseUrl);
       validatedBaseUrl = url.toString().replace(/\/+$/, "");
     } catch (err: unknown) {
       return NextResponse.json(
@@ -68,7 +81,7 @@ export async function POST(req: NextRequest) {
   try {
     const adapter = createAiAdapter({
       providerType: providerType as AiProviderType,
-      apiKey,
+      apiKey: keyToUse,
       model: modelToUse,
       baseUrl: validatedBaseUrl,
     });
