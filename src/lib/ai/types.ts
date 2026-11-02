@@ -7,7 +7,8 @@ export type AiProviderType =
   | "ANTHROPIC"
   | "GEMINI"
   | "XAI"
-  | "OPENAI_COMPATIBLE";
+  | "OPENAI_COMPATIBLE"
+  | "OLLAMA";
 
 export type AiHealthStatus =
   | "CONNECTED"
@@ -155,6 +156,11 @@ export const KNOWN_MODELS: Record<AiProviderType, ProviderModelOption[]> = {
     { id: "llama-3.3-70b-instruct", name: "Llama 3.3 70B Instruct", description: "Open-source flagship (vLLM / Together AI / Ollama)" },
     { id: "mistral-large-latest", name: "Mistral Large", description: "Frontier reasoning via Mistral AI or gateway" },
   ],
+  OLLAMA: [
+    { id: "qwen2.5-coder:7b", name: "Qwen 2.5 Coder 7B", description: "Fast, accurate code and instruction model (Recommended)", recommended: true },
+    { id: "mistral:latest", name: "Mistral 7B", description: "General purpose reasoning & instruction following" },
+    { id: "mistral-local:latest", name: "Mistral Local", description: "Local weights variant" },
+  ],
 };
 
 export const DEFAULT_MODELS: Record<AiProviderType, string> = {
@@ -163,4 +169,7 @@ export const DEFAULT_MODELS: Record<AiProviderType, string> = {
   GEMINI: "gemini-3.8-flash",
   XAI: "grok-2-latest",
   OPENAI_COMPATIBLE: "deepseek-chat",
+  OLLAMA: "qwen2.5-coder:7b",
 };
+
+export const DEFAULT_OLLAMA_URL = "https://ollama2001.mechlintech.com";
