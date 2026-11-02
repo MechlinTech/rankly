@@ -3,23 +3,29 @@ import { requireSuperAdmin } from "@/lib/auth/super-admin";
 import { prisma } from "@/lib/db";
 import { encryptSecret, maskApiKey } from "@/lib/crypto/encryption";
 import { validateCustomEndpointUrl } from "@/lib/ai/ssrf";
-import { DEFAULT_MODELS, type SafeAiProviderConfig } from "@/lib/ai/types";
+import { DEFAULT_MODELS, DEFAULT_OLLAMA_URL, type SafeAiProviderConfig } from "@/lib/ai/types";
 import type { AiProviderConfig } from "@/generated/prisma/client";
 import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
 const createProviderSchema = z.object({
-  providerType: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "XAI", "OPENAI_COMPATIBLE"]),
+  providerType: z.enum(["OPENAI", "ANTHROPIC", "GEMINI", "XAI", "OPENAI_COMPATIBLE", "OLLAMA"]),
   displayName: z.string().trim().min(1, "Display name is required").max(100),
-  apiKey: z.string().trim().min(1, "API key is required"),
+  apiKey: z.string().trim().optional().default(""),
   baseUrl: z.string().trim().nullable().optional(),
   defaultModel: z.string().trim().min(1).optional(),
   isActive: z.boolean().optional().default(true),
   isDefault: z.boolean().optional().default(false),
   isFallback: z.boolean().optional().default(false),
   fallbackPriority: z.number().int().min(0).max(100).optional().default(0),
-});
+}).refine(
+  (data) => data.providerType === "OLLAMA" || data.apiKey.length > 0,
+  {
+    message: "API key is required for cloud providers.",
+    path: ["apiKey"],
+  }
+);
 
 function formatSafeConfig(c: AiProviderConfig): SafeAiProviderConfig {
   return {
@@ -76,11 +82,16 @@ export async function POST(req: NextRequest) {
     data.isFallback = false;
   }
 
-  // Validate custom base URL if provided
+  // Validate or assign custom base URL if provided (or default for Ollama)
+  let rawBaseUrl = data.baseUrl?.trim() || null;
+  if (!rawBaseUrl && data.providerType === "OLLAMA") {
+    rawBaseUrl = DEFAULT_OLLAMA_URL;
+  }
+
   let validatedBaseUrl: string | null = null;
-  if (data.baseUrl) {
+  if (rawBaseUrl) {
     try {
-      const url = validateCustomEndpointUrl(data.baseUrl);
+      const url = validateCustomEndpointUrl(rawBaseUrl);
       validatedBaseUrl = url.toString().replace(/\/+$/, "");
     } catch (err: unknown) {
       return NextResponse.json(
@@ -92,9 +103,10 @@ export async function POST(req: NextRequest) {
 
   const modelToUse = data.defaultModel?.trim() || DEFAULT_MODELS[data.providerType];
 
+  const rawKey = data.apiKey.trim() || (data.providerType === "OLLAMA" ? "ollama" : "");
   let encryptedApiKey: string;
   try {
-    encryptedApiKey = encryptSecret(data.apiKey);
+    encryptedApiKey = encryptSecret(rawKey);
   } catch (err: unknown) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Encryption failed. Verify APP_ENCRYPTION_KEY." },
@@ -102,7 +114,10 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const maskedApiKey = maskApiKey(data.apiKey);
+  const maskedApiKey =
+    data.providerType === "OLLAMA" && (!data.apiKey.trim() || data.apiKey.trim() === "ollama")
+      ? "None (Self-Hosted)"
+      : maskApiKey(data.apiKey);
 
   const newProvider = await prisma.$transaction(async (tx) => {
     // If setting as default, unset existing default providers
@@ -142,6 +157,7 @@ export async function POST(req: NextRequest) {
         providerType: data.providerType,
         displayName: data.displayName,
         model: modelToUse,
+        baseUrl: validatedBaseUrl,
         isDefault: data.isDefault,
         isFallback: data.isFallback,
       },

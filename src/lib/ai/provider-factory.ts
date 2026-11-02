@@ -2,6 +2,7 @@ import type { AiProviderAdapter, AiProviderType } from "./types";
 import { OpenAiCompatibleAdapter } from "./adapters/openai-compatible";
 import { AnthropicAdapter } from "./adapters/anthropic";
 import { GeminiAdapter } from "./adapters/gemini";
+import { OllamaAdapter } from "./adapters/ollama";
 import { AiError } from "./errors";
 
 export interface CreateAdapterParams {
@@ -38,6 +39,13 @@ export function createAiAdapter(params: CreateAdapterParams): AiProviderAdapter 
       return new GeminiAdapter({
         apiKey,
         model,
+      });
+
+    case "OLLAMA":
+      return new OllamaAdapter({
+        apiKey,
+        model,
+        baseUrl,
       });
 
     default: {
