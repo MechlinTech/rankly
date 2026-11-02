@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { OpenAiCompatibleAdapter } from "./adapters/openai-compatible";
 import { AnthropicAdapter } from "./adapters/anthropic";
 import { GeminiAdapter } from "./adapters/gemini";
+import { OllamaAdapter } from "./adapters/ollama";
 import {
   InvalidApiKeyError,
   RateLimitError,
@@ -331,6 +332,120 @@ describe("AI Provider Adapters", () => {
       await expect(
         adapter.generateText({ messages: [{ role: "user", content: "test" }] })
       ).rejects.toThrow(InvalidApiKeyError);
+    });
+  });
+  describe("Ollama Adapter", () => {
+    it("successfully tests connection via /api/tags and discovers available models", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          models: [
+            { name: "qwen2.5-coder:7b", model: "qwen2.5-coder:7b" },
+            { name: "mistral:latest", model: "mistral:latest" },
+          ],
+        }),
+      });
+
+      const adapter = new OllamaAdapter({
+        model: "qwen2.5-coder:7b",
+        baseUrl: "https://ollama2001.mechlintech.com",
+      });
+
+      const res = await adapter.testConnection();
+      expect(res.status).toBe("CONNECTED");
+      expect(res.availableModels).toContain("qwen2.5-coder:7b");
+      expect(res.availableModels).toContain("mistral:latest");
+      expect(res.message).toContain("2 models available");
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://ollama2001.mechlintech.com/api/tags",
+        expect.objectContaining({ method: "GET" })
+      );
+    });
+
+    it("falls back to /v1/models if /api/tags is unavailable during testConnection", async () => {
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({ ok: false, status: 404, json: async () => ({}) })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: [{ id: "mistral:latest" }],
+          }),
+        });
+
+      const adapter = new OllamaAdapter({
+        model: "mistral:latest",
+        baseUrl: "https://ollama2001.mechlintech.com",
+      });
+
+      const res = await adapter.testConnection();
+      expect(res.status).toBe("CONNECTED");
+      expect(res.availableModels).toContain("mistral:latest");
+      expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("successfully generates text using /api/chat native endpoint", async () => {
+      globalThis.fetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          model: "qwen2.5-coder:7b",
+          message: { role: "assistant", content: "Hello from Ollama!" },
+          prompt_eval_count: 10,
+          eval_count: 25,
+          total_duration: 1500000000,
+        }),
+      });
+
+      const adapter = new OllamaAdapter({
+        model: "qwen2.5-coder:7b",
+        baseUrl: "https://ollama2001.mechlintech.com",
+      });
+
+      const res = await adapter.generateText({
+        messages: [{ role: "user", content: "Say hello" }],
+      });
+
+      expect(res.text).toBe("Hello from Ollama!");
+      expect(res.provider).toBe("OLLAMA");
+      expect(res.model).toBe("qwen2.5-coder:7b");
+      expect(res.usage.promptTokens).toBe(10);
+      expect(res.usage.completionTokens).toBe(25);
+      expect(res.usage.totalTokens).toBe(35);
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        "https://ollama2001.mechlintech.com/api/chat",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            model: "qwen2.5-coder:7b",
+            messages: [{ role: "user", content: "Say hello" }],
+            stream: false,
+            options: {},
+          }),
+        })
+      );
+    });
+
+    it("falls back to /v1/chat/completions if /api/chat returns 404", async () => {
+      globalThis.fetch = vi.fn()
+        .mockResolvedValueOnce({ ok: false, status: 404, text: async () => "Not Found" })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            choices: [{ message: { content: "Fallback OpenAI format" } }],
+            usage: { prompt_tokens: 5, completion_tokens: 5 },
+          }),
+        });
+
+      const adapter = new OllamaAdapter({
+        model: "qwen2.5-coder:7b",
+        baseUrl: "https://ollama2001.mechlintech.com",
+      });
+
+      const res = await adapter.generateText({
+        messages: [{ role: "user", content: "Hi" }],
+      });
+
+      expect(res.text).toBe("Fallback OpenAI format");
+      expect(res.provider).toBe("OLLAMA");
     });
   });
 });

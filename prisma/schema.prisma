@@ -331,6 +331,7 @@ enum AiProviderType {
   GEMINI
   XAI
   OPENAI_COMPATIBLE
+  OLLAMA
 }
 
 enum AiHealthStatus {
